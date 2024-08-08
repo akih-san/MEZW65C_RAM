@@ -103,9 +103,9 @@ https://sourceforge.net/projects/bin2mot/files/<br>
 ・snap<br>
 マイクロチップ社の書き込みツールです。<br>
 <br>
-・PICkit3
-PICkitminus書き込みソフトを用いて、書き込むことが出来ます。以下で入手できます。
-http://kair.us/projects/pickitminus/
+・PICkit3<br>
+PICkitminus書き込みソフトを用いて、書き込むことが出来ます。以下で入手できます。<br>
+http://kair.us/projects/pickitminus/<br>
 <br>
 <br>
 PICへの書き込みツールを用いて、ヘキサファイルを書き込みます。<br>
@@ -115,7 +115,7 @@ PICへの書き込みツールを用いて、ヘキサファイルを書き込�
 　　- R1.2q43_8MHz.hex<br>
 　　- R1.2q43_4MHz.hex<br>
 <br>
-・PIC18F47Q43<br>
+・PIC18F47Q84<br>
 　　- R1.2q84_8MHz.hex<br>
 　　- R1.2q84_4MHz.hex<br>
 <br>
