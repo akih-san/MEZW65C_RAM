@@ -1,0 +1,2071 @@
+  Thu Aug  8 2024  9:30                                                                                                    Page 1
+
+
+                                               ***************************************
+                                               **      WDC 65C816 Macro Assembler   **
+                                               **                                   **
+                                               **     Version 3.49.1- Feb  6 2006    **
+                                               ***************************************
+
+     1                        ;===============================================================================
+     2                        ;
+     3                        ; This program provides a simple monitor for MEZW65C_RAM  add-on board
+     4                        ;
+     5                        ;    Target: MEZW65C_RAM
+     6                        ;    Written by Akihito Honda (Aki.h @akih_san)
+     7                        ;    https://twitter.com/akih_san
+     8                        ;    https://github.com/akih-san
+     9                        ;    Date. 2024.7.09
+    10                        ;
+    11                        ; Copyright (c) 2024 Akihito Honda
+    12                        ;
+    13                        ; Released under the MIT license
+    14                        ;
+    15                        ; Permission is hereby granted, free of charge, to any person obtaining a copy of this
+    16                        ; software and associated documentation files (the ÅgSoftwareÅh), to deal in the Software
+    17                        ; without restriction, including without limitation the rights to use, copy, modify, merge,
+    18                        ; publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+    19                        ; to whom the Software is furnished to do so, subject to the following conditions:
+    20                        ;
+    21                        ; The above copyright notice and this permission notice shall be included in all copies or
+    22                        ; substantial portions of the Software.
+    23                        ; 
+    24                        ; THE SOFTWARE IS PROVIDED ÅgAS ISÅh, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    25                        ; OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    26                        ; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    27                        ; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+    28                        ; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+    29                        ; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    30                        ; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    31                        ; SOFTWARE.
+    32                        ; 
+    33                        ; <Original sorce code>
+    34                        ; sxb-hacker.asm
+    35                        ; https://github.com/andrew-jacobs/w65c816sxb-hacker
+    36                        ; Thanks all.
+    37                        ;-------------------------------------------------------------------------------
+    38                        
+    39                                        pw      132
+    40                                        inclist on
+    41                        
+    42                                        chip    65816
+    43                        
+    44                                        include "w65c816.inc"
+     1                        ;==============================================================================
+     2                        ; __        ____  ____   ____ ___  _  __   
+     3                        ; \ \      / / /_| ___| / ___( _ )/ |/ /_  
+     4                        ;  \ \ /\ / / '_ \___ \| |   / _ \| | '_ \ 
+     5                        ;   \ V  V /| (_) |__) | |__| (_) | | (_) |
+     6                        ;    \_/\_/  \___/____/ \____\___/|_|\___/ 
+     7                        ;
+     8                        ; Western Design Center W65C816 device definitions                                          
+  Thu Aug  8 2024  9:30                                                                                                    Page 2
+
+
+     9                        ;------------------------------------------------------------------------------
+    10                        ; Copyright (C)2015 HandCoded Software Ltd.
+    11                        ; All rights reserved.
+    12                        ;
+    13                        ; This work is made available under the terms of the Creative Commons
+    14                        ; Attribution-NonCommercial-ShareAlike 4.0 International license. Open the
+    15                        ; following URL to see the details.
+    16                        ;
+    17                        ; http://creativecommons.org/licenses/by-nc-sa/4.0/
+    18                        ;
+    19                        ;===============================================================================
+    20                        ; Notes:
+    21                        ;
+    22                        ; Various macros and definitions for the W65C816 microprocessor.
+    23                        ;
+    24                        ;===============================================================================
+    25                        ; Revision History:
+    26                        ;
+    27                        ; 2015-12-18 AJ Initial version
+    28                        ;-------------------------------------------------------------------------------
+    29                        ; $Id$
+    30                        ;-------------------------------------------------------------------------------
+    31                        
+    32                        ;==============================================================================
+    33                        ; Status Register Bits
+    34                        ;------------------------------------------------------------------------------
+    35                        
+    36             00000080   N_FLAG          equ     1<<7
+    37             00000040   V_FLAG          equ     1<<6
+    38             00000020   M_FLAG          equ     1<<5
+    39             00000010   X_FLAG          equ     1<<4
+    40             00000010   B_FLAG          equ     1<<4
+    41             00000008   D_FLAG          equ     1<<3
+    42             00000004   I_FLAG          equ     1<<2
+    43             00000002   Z_FLAG          equ     1<<1
+    44             00000001   C_FLAG          equ     1<<0
+    45                        
+    46                        ;==============================================================================
+    47                        ; Macros
+    48                        ;------------------------------------------------------------------------------
+    49                        
+    50                        ; Puts the processor in emulation mode. A, X and Y become 8-bits and the stack
+    51                        ; is fixed at $0100-$01ff. 
+    52                        
+    53                        emulate         macro
+    54                                        sec
+    55                                        xce
+    56                                        endm
+    57                        
+    58                        ; Puts the processor in native mode. The size of the memory and index register
+    59                        ; operations is not controlled by the M & X bits in the status register.
+    60                        
+    61                        native          macro
+    62                                        clc
+    63                                        xce
+    64                                        endm
+    65                        
+    66                        ; Resets the M bit making the accumulator and memory accesses 16-bits wide.
+  Thu Aug  8 2024  9:30                                                                                                    Page 3
+
+
+    67                         
+    68                        long_a          macro
+    69                                        rep     #M_FLAG
+    70                                        longa   on
+    71                                        endm
+    72                        
+    73                        ; Resets the X bit making the index registers 16-bits wide
+    74                        
+    75                        long_i          macro
+    76                                        rep     #X_FLAG
+    77                                        longi   on
+    78                                        endm
+    79                        
+    80                        ; Resets the M and X bits making the accumulator, memory accesses and index
+    81                        ; registers 16-bits wide.
+    82                                        
+    83                        long_ai         macro
+    84                                        rep     #M_FLAG|X_FLAG
+    85                                        longa   on
+    86                                        longi   on
+    87                                        endm
+    88                        
+    89                        ; Sets the M bit making the accumulator and memory accesses 8-bits wide.
+    90                        
+    91                        short_a         macro
+    92                                        sep     #M_FLAG
+    93                                        longa   off
+    94                                        endm
+    95                        
+    96                        ; Sets the X bit making the index registers 8-bits wide.
+    97                        
+    98                        short_i         macro
+    99                                        sep     #X_FLAG
+   100                                        longi   off
+   101                                        endm
+   102                                        
+   103                        ; Sets the M & X bits making the accumulator, memory accesses and index
+   104                        ; registers 8-bits wide.
+   105                        
+   106                        short_ai        macro
+   107                                        sep     #M_FLAG|X_FLAG
+   108                                        longa   off
+   109                                        longi   off
+   110                                        endm
+    45                        
+    46                        MNEM            macro   P,Q,R
+    47                                        dw      ((((P-'@')<<5)|(Q-'@'))<<5)|(R-'@')
+    48                                        endm
+    49                        
+    50                        ;===============================================================================
+    51                        ; ASCII Character Codes
+    52                        ;-------------------------------------------------------------------------------
+    53                        
+    54             00000001   SOH             equ     $01
+    55             00000004   EOT             equ     $04
+    56             00000006   ACK             equ     $06
+    57             00000007   BEL             equ     $07
+    58             00000008   BS              equ     $08
+  Thu Aug  8 2024  9:30                                                                                                    Page 4
+
+
+    59             0000000A   LF              equ     $0a
+    60             0000000D   CR              equ     $0d
+    61             00000015   NAK             equ     $15
+    62             00000018   CAN             equ     $18
+    63             0000001B   ESC             equ     $1b
+    64             0000007F   DEL             equ     $7f
+    65                        
+    66                        ;===============================================================================
+    67                        ;-------------------------------------------------------------------------------
+    68                        
+    69             00000000   OP_ADC          equ     0<<1
+    70             00000002   OP_AND          equ     1<<1
+    71             00000004   OP_ASL          equ     2<<1
+    72             00000006   OP_BCC          equ     3<<1
+    73             00000008   OP_BCS          equ     4<<1
+    74             0000000A   OP_BEQ          equ     5<<1
+    75             0000000C   OP_BIT          equ     6<<1
+    76             0000000E   OP_BMI          equ     7<<1
+    77             00000010   OP_BNE          equ     8<<1
+    78             00000012   OP_BPL          equ     9<<1
+    79             00000014   OP_BRA          equ     10<<1
+    80             00000016   OP_BRK          equ     11<<1
+    81             00000018   OP_BRL          equ     12<<1
+    82             0000001A   OP_BVC          equ     13<<1
+    83             0000001C   OP_BVS          equ     14<<1
+    84             0000001E   OP_CLC          equ     15<<1
+    85             00000020   OP_CLD          equ     16<<1
+    86             00000022   OP_CLI          equ     17<<1
+    87             00000024   OP_CLV          equ     18<<1
+    88             00000026   OP_CMP          equ     19<<1
+    89             00000028   OP_COP          equ     20<<1
+    90             0000002A   OP_CPX          equ     21<<1
+    91             0000002C   OP_CPY          equ     22<<1
+    92             0000002E   OP_DEC          equ     23<<1
+    93             00000030   OP_DEX          equ     24<<1
+    94             00000032   OP_DEY          equ     25<<1
+    95             00000034   OP_EOR          equ     26<<1
+    96             00000036   OP_INC          equ     27<<1
+    97             00000038   OP_INX          equ     28<<1
+    98             0000003A   OP_INY          equ     29<<1
+    99             0000003C   OP_JML          equ     30<<1
+   100             0000003E   OP_JMP          equ     31<<1
+   101             00000040   OP_JSL          equ     32<<1
+   102             00000042   OP_JSR          equ     33<<1
+   103             00000044   OP_LDA          equ     34<<1
+   104             00000046   OP_LDX          equ     35<<1
+   105             00000048   OP_LDY          equ     36<<1
+   106             0000004A   OP_LSR          equ     37<<1
+   107             0000004C   OP_MVN          equ     38<<1
+   108             0000004E   OP_MVP          equ     39<<1
+   109             00000050   OP_NOP          equ     40<<1
+   110             00000052   OP_ORA          equ     41<<1
+   111             00000054   OP_PEA          equ     42<<1
+   112             00000056   OP_PEI          equ     43<<1
+   113             00000058   OP_PER          equ     44<<1
+   114             0000005A   OP_PHA          equ     45<<1
+   115             0000005C   OP_PHB          equ     46<<1
+   116             0000005E   OP_PHD          equ     47<<1
+  Thu Aug  8 2024  9:30                                                                                                    Page 5
+
+
+   117             00000060   OP_PHK          equ     48<<1
+   118             00000062   OP_PHP          equ     49<<1
+   119             00000064   OP_PHX          equ     50<<1
+   120             00000066   OP_PHY          equ     51<<1
+   121             00000068   OP_PLA          equ     52<<1
+   122             0000006A   OP_PLB          equ     53<<1
+   123             0000006C   OP_PLD          equ     54<<1
+   124             0000006E   OP_PLP          equ     55<<1
+   125             00000070   OP_PLX          equ     56<<1
+   126             00000072   OP_PLY          equ     57<<1
+   127             00000074   OP_REP          equ     58<<1
+   128             00000076   OP_ROL          equ     59<<1
+   129             00000078   OP_ROR          equ     60<<1
+   130             0000007A   OP_RTI          equ     61<<1
+   131             0000007C   OP_RTL          equ     62<<1
+   132             0000007E   OP_RTS          equ     63<<1
+   133             00000080   OP_SBC          equ     64<<1
+   134             00000082   OP_SEC          equ     65<<1
+   135             00000084   OP_SED          equ     66<<1
+   136             00000086   OP_SEI          equ     67<<1
+   137             00000088   OP_SEP          equ     68<<1
+   138             0000008A   OP_STA          equ     69<<1
+   139             0000008C   OP_STP          equ     70<<1
+   140             0000008E   OP_STX          equ     71<<1
+   141             00000090   OP_STY          equ     72<<1
+   142             00000092   OP_STZ          equ     73<<1
+   143             00000094   OP_TAX          equ     74<<1
+   144             00000096   OP_TAY          equ     75<<1
+   145             00000098   OP_TCD          equ     76<<1
+   146             0000009A   OP_TCS          equ     77<<1
+   147             0000009C   OP_TDC          equ     78<<1
+   148             0000009E   OP_TRB          equ     79<<1
+   149             000000A0   OP_TSB          equ     80<<1
+   150             000000A2   OP_TSC          equ     81<<1
+   151             000000A4   OP_TSX          equ     82<<1
+   152             000000A6   OP_TXA          equ     83<<1
+   153             000000A8   OP_TXS          equ     84<<1
+   154             000000AA   OP_TXY          equ     85<<1
+   155             000000AC   OP_TYA          equ     86<<1
+   156             000000AE   OP_TYX          equ     87<<1
+   157             000000B0   OP_WAI          equ     88<<1
+   158             000000B2   OP_WDM          equ     89<<1
+   159             000000B4   OP_XBA          equ     90<<1
+   160             000000B6   OP_XCE          equ     91<<1
+   161                        
+   162             00000000   MD_ABS          equ     0<<1                    ; a
+   163             00000002   MD_ACC          equ     1<<1                    ; A
+   164             00000004   MD_ABX          equ     2<<1                    ; a,x
+   165             00000006   MD_ABY          equ     3<<1                    ; a,y
+   166             00000008   MD_ALG          equ     4<<1                    ; al
+   167             0000000A   MD_ALX          equ     5<<1                    ; al,x
+   168             0000000C   MD_AIN          equ     6<<1                    ; (a)
+   169             0000000E   MD_AIX          equ     7<<1                    ; (a,x)
+   170             00000010   MD_DPG          equ     8<<1                    ; d
+   171             00000012   MD_STK          equ     9<<1                    ; d,s
+   172             00000014   MD_DPX          equ     10<<1                   ; d,x
+   173             00000016   MD_DPY          equ     11<<1                   ; d,x
+   174             00000018   MD_DIN          equ     12<<1                   ; (d)
+  Thu Aug  8 2024  9:30                                                                                                    Page 6
+
+
+   175             0000001A   MD_DLI          equ     13<<1                   ; [d]
+   176             0000001C   MD_SKY          equ     14<<1                   ; (d,s),y
+   177             0000001E   MD_DIX          equ     15<<1                   ; (d,x)
+   178             00000020   MD_DIY          equ     16<<1                   ; (d),y
+   179             00000022   MD_DLY          equ     17<<1                   ; [d],y
+   180             00000024   MD_IMP          equ     18<<1                   ;
+   181             00000026   MD_REL          equ     19<<1                   ; r
+   182             00000028   MD_RLG          equ     20<<1                   ; rl
+   183             0000002A   MD_MOV          equ     21<<1                   ; xyc
+   184             0000002C   MD_IMM          equ     22<<1                   ; # (A or M)
+   185             0000002E   MD_INT          equ     23<<1                   ; # (BRK/COP/WDM)
+   186             00000030   MD_IMX          equ     24<<1                   ; # (X or Y)
+   187                        
+   188                        ;===============================================================================
+   189                        ; Data Areas
+   190                        ;-------------------------------------------------------------------------------
+   191                        
+   192                                        page0
+   193                        ;                org     $20
+   194                                        org     $28
+   195                        
+   196 00:0028:              FLAGS           ds      1                       ; Emulated processor flags
+   197 00:0029:              BUFLEN          ds      1                       ; Command buffer length
+   198 00:002A:              BANK            ds      1                       ; Memory bank
+   199                        
+   200 00:002B:              ADDR_S          ds      3                       ; Start address
+   201 00:002E:              ADDR_E          ds      3                       ; End address
+   202                        
+   203 00:0031:              BLOCK           ds      1                       ; XMODEM block number
+   204 00:0032:              RETRIES         ds      1                       ; Retry count
+   205 00:0033:              SUM             ds      1                       ; Checksum
+   206                        
+   207 00:0034:              TEMP            ds      4                       ; Scratch workspace
+   208                        
+   209                                        data
+   210                                        org     $200
+   211                        
+   212 00:0200:              BUFFER          ds      128                     ; Command buffer
+   213                        
+   214                        ;===============================================================================
+   215                        ; Initialisation
+   216                        ;-------------------------------------------------------------------------------
+   217                        
+   218                                        code
+   219                                        public  Start
+   220                                        extern  UartRx
+   221                                        extern  UartTx
+   222                                        extern  UartRxTest
+   223                        Start:
+   224                                        short_a                         ; Configure register sizes
++  224 00:0000: E2 20                        sep     #M_FLAG
++  224                                        longa   off
+   225                                        long_i
++  225 00:0002: C2 10                        rep     #X_FLAG
++  225                                        longi   on
+   226 00:0004: 20 xx xx                     jsr     TxCRLF
+   227 00:0007: A2 xx xx                     ldx     #TITLE                  ; Display application title
+   228 00:000A: 20 xx xx                     jsr     TxStr
+  Thu Aug  8 2024  9:30                                                                                                    Page 7
+
+
+   229                        
+   230 00:000D: 64 2A                        stz     BANK                    ; Reset default bank
+   231                        
+   232                        ;===============================================================================
+   233                        ; Command Processor
+   234                        ;-------------------------------------------------------------------------------
+   235                        
+   236                        NewCommand:
+   237 00:000F: 64 29                        stz     BUFLEN                  ; Clear the buffer
+   238                        ShowCommand:
+   239                                        short_i
++  239 00:0011: E2 10                        sep     #X_FLAG
++  239                                        longi   off
+   240 00:0013: 20 xx xx                     jsr     TxCRLF                  ; Move to a new line
+   241                        
+   242 00:0016: A9 2E                        lda     #'.'                    ; Output the prompt
+   243 00:0018: 20 xx xx                     jsr     UartTx
+   244                        
+   245 00:001B: A2 00                        ldx     #0
+   246 00:001D: E4 29        DisplayCmd:     cpx     BUFLEN                  ; Any saved characters
+   247 00:001F: F0 0E                        beq     ReadCommand
+   248 00:0021: BD 00 02                     lda     BUFFER,x                ; Yes, display them
+   249 00:0024: 20 xx xx                     jsr     UartTx
+   250 00:0027: E8                           inx
+   251 00:0028: 80 F3                        bra     DisplayCmd
+   252                        
+   253                        RingBell:
+   254 00:002A: A9 07                        lda     #BEL                    ; Make a beep
+   255 00:002C: 20 xx xx                     jsr     UartTx
+   256                        
+   257                        ReadCommand:
+   258 00:002F: 20 xx xx                     jsr     UartRx                  ; Wait for character
+   259                        
+   260 00:0032: C9 1B                        cmp     #ESC                    ; Cancel input?
+   261 00:0034: F0 D9                        beq     NewCommand              ; Yes, clear and restart
+   262 00:0036: C9 0D                        cmp     #CR                     ; End of command?
+   263 00:0038: F0 2D                        beq     ProcessCommand          ; Yes, start processing
+   264                        
+   265 00:003A: C9 08                        cmp     #BS                     ; Back space?
+   266 00:003C: F0 15                        beq     BackSpace
+   267 00:003E: C9 7F                        cmp     #DEL                    ; Delete?
+   268 00:0040: F0 11                        beq     BackSpace
+   269                        
+   270 00:0042: C9 20                        cmp     #' '                    ; Printable character
+   271 00:0044: 90 E4                        bcc     RingBell                ; No.
+   272 00:0046: C9 7F                        cmp     #DEL
+   273 00:0048: B0 E0                        bcs     RingBell                ; No.
+   274 00:004A: 9D 00 02                     sta     BUFFER,x                ; Save the character
+   275 00:004D: E8                           inx
+   276 00:004E: 20 xx xx                     jsr     UartTx                  ; Echo it and repeat
+   277 00:0051: 80 DC                        bra     ReadCommand
+   278                        
+   279                        BackSpace:
+   280 00:0053: E0 00                        cpx     #0                      ; Buffer empty?
+   281 00:0055: F0 D3                        beq     RingBell                ; Yes, beep and continue
+   282 00:0057: CA                           dex                             ; No, remove last character
+   283 00:0058: A9 08                        lda     #BS
+   284 00:005A: 20 xx xx                     jsr     UartTx
+  Thu Aug  8 2024  9:30                                                                                                    Page 8
+
+
+   285 00:005D: 20 xx xx                     jsr     TxSpace
+   286 00:0060: A9 08                        lda     #BS
+   287 00:0062: 20 xx xx                     jsr     UartTx
+   288 00:0065: 80 C8                        bra     ReadCommand             ; And retry
+   289                        
+   290                        ProcessCommand:
+   291 00:0067: 86 29                        stx     BUFLEN                  ; Save final length
+   292 00:0069: A0 00                        ldy     #0                      ; Load index for start
+   293                        
+   294 00:006B: 20 xx xx                     jsr     SkipSpaces              ; Fetch command character
+   295 00:006E: B0 9F                        bcs     NewCommand              ; None, empty command
+   296                        
+   297                        ;===============================================================================
+   298                        ; H - Select Memory Bank
+   299                        ;-------------------------------------------------------------------------------
+   300                        
+   301 00:0070: C9 48                        cmp     #'H'                    ; Select memory bank?
+   302 00:0072: D0 0D                        bne     NotMemoryBank
+   303                        
+   304 00:0074: A2 2A                        ldx     #BANK                   ; Parse bank
+   305 00:0076: 20 xx xx                     jsr     GetByte
+   306 00:0079: 90 03                        bcc     $+5
+   307 00:007B: 4C xx xx                     jmp     ShowError
+   308 00:007E: 4C xx xx                     jmp     NewCommand
+   309                        NotMemoryBank:
+   310                        
+   311                        ;===============================================================================
+   312                        ; L - Listing disassemble Memory in current bank
+   313                        ;-------------------------------------------------------------------------------
+   314                        
+   315 00:0081: C9 4C                        cmp     #'L'                    ; Memory display?
+   316 00:0083: D0 78                        bne     NotDisassemble
+   317                        
+   318 00:0085: A2 2B                        ldx     #ADDR_S                 ; Parse start address
+   319 00:0087: 20 xx xx                     jsr     GetAddr
+   320 00:008A: 90 03                        bcc     $+5
+   321 00:008C: 4C xx xx                     jmp     ShowError
+   322 00:008F: A2 2E                        ldx     #ADDR_E                 ; Parse end address
+   323 00:0091: 20 xx xx                     jsr     GetAddr
+   324 00:0094: 90 03                        bcc     $+5
+   325 00:0096: 4C xx xx                     jmp     ShowError
+   326                        
+   327 00:0099: 08                           php
+   328 00:009A: 68                           pla
+   329 00:009B: 85 28                        sta     FLAGS
+   330                        
+   331                        Disassemble:
+   332 00:009D: 20 xx xx                     jsr     TxCRLF
+   333 00:00A0: A5 2D                        lda     ADDR_S+2                ; Show memory address
+   334 00:00A2: 20 xx xx                     jsr     TxHex2
+   335 00:00A5: A9 3A                        lda     #':'
+   336 00:00A7: 20 xx xx                     jsr     UartTx
+   337 00:00AA: A5 2C                        lda     ADDR_S+1
+   338 00:00AC: 20 xx xx                     jsr     TxHex2
+   339 00:00AF: A5 2B                        lda     ADDR_S+0
+   340 00:00B1: 20 xx xx                     jsr     TxHex2
+   341 00:00B4: 20 xx xx                     jsr     TxSpace
+   342                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 9
+
+
+   343 00:00B7: 20 xx xx                     jsr     TxCodeBytes             ; Show code bytes
+   344 00:00BA: 20 xx xx                     jsr     TxSymbolic              ; And instruction
+   345                        
+   346 00:00BD: A7 2B                        lda     [ADDR_S]                ; Fetch opcode again
+   347 00:00BF: 48                           pha
+   348 00:00C0: A0 01                        ldy     #1
+   349                        
+   350 00:00C2: C9 18                        cmp     #$18                    ; CLC?
+   351 00:00C4: D0 04                        bne     NotCLC
+   352 00:00C6: A9 01                        lda     #C_FLAG
+   353 00:00C8: 80 0E                        bra     DoREP
+   354                        NotCLC:
+   355 00:00CA: C9 38                        cmp     #$38                    ; SEC?
+   356 00:00CC: D0 04                        bne     NotSEC
+   357 00:00CE: A9 01                        lda     #C_FLAG
+   358 00:00D0: 80 10                        bra     DoSEP
+   359                        NotSEC:
+   360 00:00D2: C9 C2                        cmp     #$c2                    ; REP?
+   361 00:00D4: D0 06                        bne     NotREP
+   362 00:00D6: B7 2B                        lda     [ADDR_S],Y
+   363 00:00D8: 14 28        DoREP:          trb     FLAGS
+   364 00:00DA: 80 08                        bra     NextOpcode
+   365                        NotREP:
+   366 00:00DC: C9 E2                        cmp     #$e2                    ; SEP?
+   367 00:00DE: D0 04                        bne     NextOpcode
+   368 00:00E0: B7 2B                        lda     [ADDR_S],Y
+   369 00:00E2: 04 28        DoSEP:          tsb     FLAGS
+   370                        
+   371                        NextOpcode:
+   372 00:00E4: 68                           pla
+   373 00:00E5: 20 xx xx                     jsr     OpcodeSize
+   374                        
+   375 00:00E8: 18                           clc
+   376 00:00E9: 65 2B                        adc     ADDR_S+0                ; And move start address on
+   377 00:00EB: 85 2B                        sta     ADDR_S+0
+   378 00:00ED: 90 02                        bcc     $+4
+   379 00:00EF: E6 2C                        inc     ADDR_S+1
+   380                        
+   381 00:00F1: 38                           sec                             ; Exceeded the end address?
+   382 00:00F2: E5 2E                        sbc     ADDR_E+0
+   383 00:00F4: A5 2C                        lda     ADDR_S+1
+   384 00:00F6: E5 2F                        sbc     ADDR_E+1
+   385 00:00F8: 30 A3                        bmi     Disassemble             ; No, show more
+   386                        
+   387 00:00FA: 4C xx xx                     jmp     NewCommand              ; Done
+   388                        NotDisassemble:
+   389                        
+   390                        ;===============================================================================
+   391                        ; G - Goto
+   392                        ;-------------------------------------------------------------------------------
+   393                        
+   394 00:00FD: C9 47                        cmp     #'G'                    ; Invoke code
+   395 00:00FF: D0 0D                        bne     NotGoto
+   396                        
+   397 00:0101: A2 2B                        ldx     #ADDR_S                 ; Parse execution address
+   398 00:0103: 20 xx xx                     jsr     GetAddr
+   399 00:0106: B0 03                        bcs     $+5
+   400 00:0108: DC 2B 00                     jmp     [ADDR_S]                ; Run from address
+  Thu Aug  8 2024  9:30                                                                                                    Page 10
+
+
+   401 00:010B: 6C FC FF                     jmp     ($FFFC)                 ; Otherwise reset
+   402                        NotGoto:
+   403                        
+   404                        ;===============================================================================
+   405                        ; D - Dump memory in current bank
+   406                        ;-------------------------------------------------------------------------------
+   407                        
+   408 00:010E: C9 44                        cmp     #'D'                    ; Memory display?
+   409 00:0110: D0 70                        bne     NotMemoryDisplay
+   410                        
+   411 00:0112: A2 2B                        ldx     #ADDR_S                 ; Parse start address
+   412 00:0114: 20 xx xx                     jsr     GetAddr
+   413 00:0117: 90 03                        bcc     $+5
+   414 00:0119: 4C xx xx                     jmp     ShowError
+   415 00:011C: A2 2E                        ldx     #ADDR_E                 ; Parse end address
+   416 00:011E: 20 xx xx                     jsr     GetAddr
+   417 00:0121: 90 03                        bcc     $+5
+   418 00:0123: 4C xx xx                     jmp     ShowError
+   419                        
+   420                        DisplayMemory:
+   421 00:0126: 20 xx xx                     jsr     TxCRLF
+   422 00:0129: A5 2D                        lda     ADDR_S+2                ; Show memory address
+   423 00:012B: 20 xx xx                     jsr     TxHex2
+   424 00:012E: A9 3A                        lda     #':'
+   425 00:0130: 20 xx xx                     jsr     UartTx
+   426 00:0133: A5 2C                        lda     ADDR_S+1
+   427 00:0135: 20 xx xx                     jsr     TxHex2
+   428 00:0138: A5 2B                        lda     ADDR_S+0
+   429 00:013A: 20 xx xx                     jsr     TxHex2
+   430                        
+   431 00:013D: A0 00                        ldy     #0                      ; Show sixteen bytes of data
+   432 00:013F: 20 xx xx     ByteLoop:       jsr     TxSpace
+   433 00:0142: B7 2B                        lda     [ADDR_S],y
+   434 00:0144: 20 xx xx                     jsr     TxHex2
+   435 00:0147: C8                           iny
+   436 00:0148: C0 10                        cpy     #16
+   437 00:014A: D0 F3                        bne     ByteLoop
+   438                        
+   439 00:014C: 20 xx xx                     jsr     TxSpace
+   440 00:014F: A9 7C                        lda     #'|'
+   441 00:0151: 20 xx xx                     jsr     UartTx
+   442 00:0154: A0 00                        ldy     #0                      ; Show sixteen characters
+   443 00:0156: B7 2B        CharLoop:       lda     [ADDR_S],Y
+   444 00:0158: 20 xx xx                     jsr     IsPrintable
+   445 00:015B: B0 02                        bcs     $+4
+   446 00:015D: A9 2E                        lda     #'.'
+   447 00:015F: 20 xx xx                     jsr     UartTx
+   448 00:0162: C8                           iny
+   449 00:0163: C0 10                        cpy     #16
+   450 00:0165: D0 EF                        bne     CharLoop
+   451 00:0167: A9 7C                        lda     #'|'
+   452 00:0169: 20 xx xx                     jsr     UartTx
+   453                        
+   454 00:016C: 18                           clc                             ; Bump the display address
+   455 00:016D: 98                           tya
+   456 00:016E: 65 2B                        adc     ADDR_S+0
+   457 00:0170: 85 2B                        sta     ADDR_S+0
+   458 00:0172: 90 02                        bcc     $+4
+  Thu Aug  8 2024  9:30                                                                                                    Page 11
+
+
+   459 00:0174: E6 2C                        inc     ADDR_S+1
+   460                        
+   461 00:0176: 38                           sec                             ; Exceeded the end address?
+   462 00:0177: E5 2E                        sbc     ADDR_E+0
+   463 00:0179: A5 2C                        lda     ADDR_S+1
+   464 00:017B: E5 2F                        sbc     ADDR_E+1
+   465 00:017D: 30 A7                        bmi     DisplayMemory           ; No, show more
+   466                        
+   467 00:017F: 4C xx xx                     jmp     NewCommand
+   468                        NotMemoryDisplay:
+   469                        
+   470                        ;===============================================================================
+   471                        ; S - record Motorola S19 format
+   472                        ;-------------------------------------------------------------------------------
+   473                        
+   474 00:0182: C9 53                        cmp     #'S'                    ; S19?
+   475 00:0184: F0 03                        beq     $+5
+   476 00:0186: 4C xx xx                     jmp     NotS19
+   477                        
+   478 00:0189: 20 xx xx                     jsr     NextChar                ; Get record type
+   479 00:018C: B0 5C                        bcs     S19Fail
+   480 00:018E: C9 31                        cmp     #'1'                    ; Only process type 1
+   481 00:0190: D0 55                        bne     S19Done
+   482                        
+   483 00:0192: A2 2E                        ldx     #ADDR_E                 ; Get byte count
+   484 00:0194: 20 xx xx                     jsr     GetByte
+   485 00:0197: B0 51                        bcs     S19Fail
+   486 00:0199: A5 2E                        lda     ADDR_E                  ; Use as initial checksum
+   487 00:019B: 85 33                        sta     SUM
+   488                                        ; Byte count not included in the S19 byte count field
+   489 00:019D: F0 4B                        beq     S19Fail
+   490                        
+   491 00:019F: A2 2B                        ldx     #ADDR_S                 ; Get address
+   492 00:01A1: 20 xx xx                     jsr     GetAddr
+   493 00:01A4: B0 44                        bcs     S19Fail
+   494 00:01A6: A5 2B                        lda     ADDR_S+0                ; Add to checksum
+   495 00:01A8: 65 2C                        adc     ADDR_S+1
+   496 00:01AA: 18                           clc
+   497 00:01AB: 65 33                        adc     SUM
+   498 00:01AD: 85 33                        sta     SUM
+   499 00:01AF: C6 2E                        dec     ADDR_E
+   500 00:01B1: F0 37                        beq     S19Fail
+   501 00:01B3: C6 2E                        dec     ADDR_E
+   502 00:01B5: F0 33                        beq     S19Fail
+   503                        
+   504                        S19Load:
+   505 00:01B7: A2 34                        ldx     #TEMP                   ; Fetch a data byte
+   506 00:01B9: 20 xx xx                     jsr     GetByte
+   507 00:01BC: B0 2C                        bcs     S19Fail
+   508 00:01BE: A5 34                        lda     TEMP
+   509 00:01C0: 65 33                        adc     SUM
+   510 00:01C2: 85 33                        sta     SUM
+   511 00:01C4: C6 2E                        dec     ADDR_E
+   512 00:01C6: F0 22                        beq     S19Fail
+   513                        
+   514 00:01C8: A5 34                        lda     TEMP                    ; Write the value
+   515 00:01CA: 87 2B                        sta     [ADDR_S]
+   516                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 12
+
+
+   517                        NoWrite:
+   518 00:01CC: E6 2B                        inc     ADDR_S+0                ; Bump address by one
+   519 00:01CE: D0 02                        bne     $+4
+   520 00:01D0: E6 2C                        inc     ADDR_S+1
+   521                        
+   522 00:01D2: A5 2E                        lda     ADDR_E                  ; Reached checksum?
+   523 00:01D4: C9 01                        cmp     #1
+   524 00:01D6: D0 DF                        bne     S19Load
+   525                        
+   526 00:01D8: A2 34                        ldx     #TEMP                   ; Yes, read it
+   527 00:01DA: 20 xx xx                     jsr     GetByte
+   528 00:01DD: B0 0B                        bcs     S19Fail
+   529 00:01DF: A5 34                        lda     TEMP
+   530 00:01E1: 65 33                        adc     SUM
+   531 00:01E3: C9 FF                        cmp     #$ff                    ; Checksum correct?
+   532 00:01E5: D0 03                        bne     S19Fail
+   533                        
+   534 00:01E7: 4C xx xx     S19Done:        jmp     NewCommand              ; Get
+   535                        
+   536                        S19Fail:
+   537                                        long_i                          ; Display error message
++  537 00:01EA: C2 10                        rep     #X_FLAG
++  537                                        longi   on
+   538 00:01EC: A2 xx xx                     ldx     #INVALID_S19
+   539 00:01EF: 20 xx xx                     jsr     TxStr
+   540                                        longi   off
+   541 00:01F2: 4C xx xx                     jmp     NewCommand              ; And start over
+   542                        NotS19:
+   543                        
+   544                        ;===============================================================================
+   545                        ; M - set Memory
+   546                        ;-------------------------------------------------------------------------------
+   547                        
+   548 00:01F5: C9 4D                        cmp     #'M'                    ; Write memory?
+   549 00:01F7: D0 3A                        bne     NotWrite
+   550                        
+   551 00:01F9: A2 2B                        ldx     #ADDR_S                 ; Parse start address
+   552 00:01FB: 20 xx xx                     jsr     GetAddr
+   553 00:01FE: 90 03                        bcc     $+5
+   554 00:0200: 4C xx xx                     jmp     ShowError
+   555                        
+   556 00:0203: A2 2E                        ldx     #ADDR_E                 ; Parse value byte
+   557 00:0205: 20 xx xx                     jsr     GetByte                 ; Is there a value?
+   558 00:0208: 90 03                        bcc     $+5
+   559 00:020A: 4C xx xx                     jmp     NewCommand              ; No.
+   560                        
+   561 00:020D: A5 2E                        lda     ADDR_E                  ; Write the value
+   562 00:020F: 87 2B                        sta     [ADDR_S]
+   563                        
+   564 00:0211: E6 2B                        inc     ADDR_S+0                ; Bump address by one
+   565 00:0213: D0 02                        bne     $+4
+   566 00:0215: E6 2C                        inc     ADDR_S+1
+   567 00:0217: A9 4D                        lda     #'M'                    ; Build command for next byte
+   568 00:0219: 20 xx xx                     jsr     StartCommand
+   569 00:021C: A9 20                        lda     #' '
+   570 00:021E: 20 xx xx                     jsr     BuildCommand
+   571 00:0221: A5 2C                        lda     ADDR_S+1                ; Add the next address
+   572 00:0223: 20 xx xx                     jsr     BuildByte
+  Thu Aug  8 2024  9:30                                                                                                    Page 13
+
+
+   573 00:0226: A5 2B                        lda     ADDR_S+0
+   574 00:0228: 20 xx xx                     jsr     BuildByte
+   575 00:022B: A9 20                        lda     #' '
+   576 00:022D: 20 xx xx                     jsr     BuildCommand
+   577 00:0230: 4C xx xx                     jmp     ShowCommand             ; And prompt for data
+   578                        
+   579                        NotWrite:
+   580                        
+   581                        ;===============================================================================
+   582                        ; X - XMODEM Receive
+   583                        ;-------------------------------------------------------------------------------
+   584                        
+   585 00:0233: C9 58                        cmp     #'X'                    ; XModem upload?
+   586 00:0235: F0 03                        beq     $+5                     ; Yes.
+   587 00:0237: 4C xx xx                     jmp     NotXModem
+   588                        
+   589 00:023A: A2 2B                        ldx     #ADDR_S                 ; Parse start address
+   590 00:023C: 20 xx xx                     jsr     GetAddr
+   591 00:023F: 90 03                        bcc     $+5
+   592 00:0241: 4C xx xx                     jmp     ShowError
+   593                        
+   594                                        long_i                          ; Display waiting message
++  594 00:0244: C2 10                        rep     #X_FLAG
++  594                                        longi   on
+   595 00:0246: A2 xx xx                     ldx     #WAITING
+   596 00:0249: 20 xx xx                     jsr     TxStr
+   597 00:024C: 20 xx xx                     jsr     TxCRLF
+   598                                        short_i
++  598 00:024F: E2 10                        sep     #X_FLAG
++  598                                        longi   off
+   599 00:0251: 64 31                        stz     BLOCK                   ; Reset the block number
+   600 00:0253: E6 31                        inc     BLOCK
+   601                        
+   602                        ResetRetries:
+   603 00:0255: A9 0A                        lda     #10                     ; Reset the retry counter
+   604 00:0257: 85 32                        sta     RETRIES
+   605                        
+   606                        TransferWait:
+   607 00:0259: 64 34                        stz     TEMP+0                  ; Clear timeout counter
+   608 00:025B: 64 35                        stz     TEMP+1
+   609 00:025D: A9 EC                        lda     #-20
+   610 00:025F: 85 36                        sta     TEMP+2
+   611                        TransferPoll:
+   612 00:0261: 20 xx xx                     jsr     UartRxTest              ; Any data yet?
+   613 00:0264: B0 20                        bcs     TransferScan
+   614 00:0266: E6 34                        inc     TEMP+0
+   615 00:0268: D0 F7                        bne     TransferPoll
+   616 00:026A: E6 35                        inc     TEMP+1
+   617 00:026C: D0 F3                        bne     TransferPoll
+   618 00:026E: E6 36                        inc     TEMP+2
+   619 00:0270: D0 EF                        bne     TransferPoll
+   620 00:0272: C6 32                        dec     RETRIES
+   621 00:0274: F0 05                        beq     TimedOut
+   622 00:0276: 20 xx xx                     jsr     SendNAK                 ; Send a NAK
+   623 00:0279: 80 DE                        bra     TransferWait
+   624                        
+   625                        TimedOut:
+   626                                        long_i
+  Thu Aug  8 2024  9:30                                                                                                    Page 14
+
+
++  626 00:027B: C2 10                        rep     #X_FLAG
++  626                                        longi   on
+   627 00:027D: A2 xx xx                     ldx     #TIMEOUT
+   628 00:0280: 20 xx xx                     jsr     TxStr
+   629                                        longi   off
+   630 00:0283: 4C xx xx                     jmp     NewCommand
+   631                        
+   632                        TransferScan:
+   633 00:0286: 20 xx xx                     jsr     UartRx                  ; Wait for SOH or EOT
+   634 00:0289: C9 04                        cmp     #EOT
+   635 00:028B: F0 4D                        beq     TransferDone
+   636 00:028D: C9 01                        cmp     #SOH
+   637 00:028F: D0 C8                        bne     TransferWait
+   638 00:0291: 20 xx xx                     jsr     UartRx                  ; Check the block number
+   639 00:0294: C5 31                        cmp     BLOCK
+   640 00:0296: D0 3C                        bne     TransferError
+   641 00:0298: 20 xx xx                     jsr     UartRx                  ; Check inverted block
+   642 00:029B: 49 FF                        eor     #$ff
+   643 00:029D: C5 31                        cmp     BLOCK
+   644 00:029F: D0 33                        bne     TransferError
+   645                        
+   646 00:02A1: A0 00                        ldy     #0
+   647 00:02A3: 84 33                        sty     SUM                     ; Clear the check sum
+   648                        TransferBlock:
+   649 00:02A5: 20 xx xx                     jsr     UartRx
+   650 00:02A8: 97 2B                        sta     [ADDR_S],Y
+   651                        
+   652                        WriteWait:
+   653 00:02AA: D7 2B                        cmp     [ADDR_S],Y              ; Wait for write
+   654 00:02AC: D0 FC                        bne     WriteWait
+   655 00:02AE: 80 01                        bra     $+3
+   656                        
+   657                        WriteSkip:
+   658 00:02B0: 68                           pla
+   659                        
+   660 00:02B1: 18                           clc                             ; Add to check sum
+   661 00:02B2: 65 33                        adc     SUM
+   662 00:02B4: 85 33                        sta     SUM
+   663 00:02B6: C8                           iny
+   664 00:02B7: C0 80                        cpy     #128
+   665 00:02B9: D0 EA                        bne     TransferBlock
+   666 00:02BB: 20 xx xx                     jsr     UartRx                  ; Check the check sum
+   667 00:02BE: C5 33                        cmp     SUM
+   668 00:02C0: D0 12                        bne     TransferError           ; Failed
+   669 00:02C2: 18                           clc
+   670 00:02C3: 98                           tya
+   671 00:02C4: 65 2B                        adc     ADDR_S+0                ; Bump address one block
+   672 00:02C6: 85 2B                        sta     ADDR_S+0
+   673 00:02C8: 90 02                        bcc     $+4
+   674 00:02CA: E6 2C                        inc     ADDR_S+1
+   675                        
+   676 00:02CC: 20 xx xx                     jsr     SendACK                 ; Acknowledge block
+   677 00:02CF: E6 31                        inc     BLOCK                   ; Bump block number
+   678 00:02D1: 4C xx xx                     jmp     TransferWait
+   679                        
+   680                        TransferError;
+   681 00:02D4: 20 xx xx                     jsr     SendNAK                 ; Send a NAK
+   682 00:02D7: 4C xx xx                     jmp     TransferWait            ; And try again
+  Thu Aug  8 2024  9:30                                                                                                    Page 15
+
+
+   683                        
+   684                        TransferDone:
+   685 00:02DA: 20 xx xx                     jsr     SendACK                 ; Acknowledge transmission
+   686 00:02DD: 4C xx xx                     jmp     NewCommand              ; Done
+   687                        
+   688                        SendACK:
+   689 00:02E0: A9 06                        lda     #ACK
+   690 00:02E2: 4C xx xx                     jmp     UartTx
+   691                        
+   692                        SendNAK:
+   693 00:02E5: A9 15                        lda     #NAK
+   694 00:02E7: 4C xx xx                     jmp     UartTx
+   695                        
+   696                        NotXModem:
+   697                        
+   698                        ;===============================================================================
+   699                        ; ? - Help
+   700                        ;-------------------------------------------------------------------------------
+   701                        
+   702 00:02EA: C9 3F                        cmp     #'?'                    ; Help command?
+   703 00:02EC: D0 0B                        bne     NotHelp
+   704                        
+   705                                        long_i
++  705 00:02EE: C2 10                        rep     #X_FLAG
++  705                                        longi   on
+   706 00:02F0: A2 xx xx                     ldx     #HELP                   ; Output help string
+   707 00:02F3: 20 xx xx                     jsr     TxStr
+   708                                        longi   off
+   709 00:02F6: 4C xx xx                     jmp     NewCommand
+   710                        NotHelp:
+   711                        
+   712                        ;-------------------------------------------------------------------------------
+   713                        
+   714                        ShowError:
+   715                                        long_i
++  715 00:02F9: C2 10                        rep     #X_FLAG
++  715                                        longi   on
+   716 00:02FB: A2 xx xx                     ldx     #ERROR                  ; Output error message
+   717 00:02FE: 20 xx xx                     jsr     TxStr
+   718                                        longi   off
+   719 00:0301: 4C xx xx                     jmp     NewCommand
+   720                        
+   721                        ;===============================================================================
+   722                        ; Byte and Word Parsing
+   723                        ;-------------------------------------------------------------------------------
+   724                        
+   725                        ; Parse a hex byte from the command line and store it at the location indicated
+   726                        ; by the X register.
+   727                        
+   728                        GetByte:
+   729 00:0304: 9E 00 00                     stz     0,x                     ; Set the target address
+   730 00:0307: 20 xx xx                     jsr     SkipSpaces              ; Skip to first real character
+   731 00:030A: 90 01                        bcc     $+3
+   732 00:030C: 60                           rts                             ; None found
+   733 00:030D: 20 xx xx                     jsr     IsHexDigit              ; Must have at least one digit
+   734 00:0310: 90 12                        bcc     ByteFail
+   735 00:0312: 20 xx xx                     jsr     AddDigit
+   736 00:0315: 20 xx xx                     jsr     NextChar
+  Thu Aug  8 2024  9:30                                                                                                    Page 16
+
+
+   737 00:0318: B0 08                        bcs     ByteDone
+   738 00:031A: 20 xx xx                     jsr     IsHexDigit
+   739 00:031D: 90 03                        bcc     ByteDone
+   740 00:031F: 20 xx xx                     jsr     AddDigit
+   741 00:0322: 18           ByteDone:       clc
+   742 00:0323: 60                           rts
+   743 00:0324: 38           ByteFail:       sec
+   744 00:0325: 60                           rts
+   745                        
+   746                        ; Parse an address from the command line and store it at the location indicated
+   747                        ; by the X register.
+   748                        
+   749                        GetAddr:
+   750 00:0326: 9E 00 00                     stz     0,x                     ; Set the target address
+   751 00:0329: 9E 01 00                     stz     1,x
+   752 00:032C: A5 2A                        lda     BANK
+   753 00:032E: 9D 02 00                     sta     2,x
+   754 00:0331: 20 xx xx                     jsr     SkipSpaces              ; Skip to first real character
+   755 00:0334: 90 01                        bcc     $+3
+   756 00:0336: 60                           rts                             ; None found
+   757                        
+   758 00:0337: 20 xx xx                     jsr     IsHexDigit              ; Must have at least one digit
+   759 00:033A: 90 2C                        bcc     AddrFail
+   760 00:033C: 20 xx xx                     jsr     AddDigit
+   761 00:033F: 20 xx xx                     jsr     NextChar
+   762 00:0342: B0 22                        bcs     AddrDone
+   763 00:0344: 20 xx xx                     jsr     IsHexDigit
+   764 00:0347: 90 1D                        bcc     AddrDone
+   765 00:0349: 20 xx xx                     jsr     AddDigit
+   766 00:034C: 20 xx xx                     jsr     NextChar
+   767 00:034F: B0 15                        bcs     AddrDone
+   768 00:0351: 20 xx xx                     jsr     IsHexDigit
+   769 00:0354: 90 10                        bcc     AddrDone
+   770 00:0356: 20 xx xx                     jsr     AddDigit
+   771 00:0359: 20 xx xx                     jsr     NextChar
+   772 00:035C: B0 08                        bcs     AddrDone
+   773 00:035E: 20 xx xx                     jsr     IsHexDigit
+   774 00:0361: 90 03                        bcc     AddrDone
+   775 00:0363: 20 xx xx                     jsr     AddDigit
+   776 00:0366: 18           AddrDone:       clc                             ; Carry clear got an address
+   777 00:0367: 60                           rts
+   778 00:0368: 38           AddrFail:       sec                             ; Carry set -- failed.
+   779 00:0369: 60                           rts
+   780                        
+   781                        ; Add a hex digit to the 16-bit value being build at at the location indicated
+   782                        ; by X.
+   783                        
+   784                        AddDigit:
+   785 00:036A: 38                           sec                             ; Convert ASCII to binary
+   786 00:036B: E9 30                        sbc     #'0'
+   787 00:036D: C9 0A                        cmp     #$0a
+   788 00:036F: 90 02                        bcc     $+4
+   789 00:0371: E9 07                        sbc     #7
+   790                        
+   791 00:0373: 1E 00 00                     asl     0,x                     ; Shift up one nybble
+   792 00:0376: 3E 01 00                     rol     1,x
+   793 00:0379: 1E 00 00                     asl     0,x
+   794 00:037C: 3E 01 00                     rol     1,x
+  Thu Aug  8 2024  9:30                                                                                                    Page 17
+
+
+   795 00:037F: 1E 00 00                     asl     0,x
+   796 00:0382: 3E 01 00                     rol     1,x
+   797 00:0385: 1E 00 00                     asl     0,x
+   798 00:0388: 3E 01 00                     rol     1,x
+   799                        
+   800 00:038B: 1D 00 00                     ora     0,x                     ; Merge in new digit
+   801 00:038E: 9D 00 00                     sta     0,x                     ; .. and save
+   802 00:0391: 60                           rts
+   803                        
+   804                        ;===============================================================================
+   805                        ; Command Line Parsing and Building
+   806                        ;-------------------------------------------------------------------------------
+   807                        
+   808                        ; Get the next character from the command buffer updating the position in X.
+   809                        ; Set the carry if the end of the buffer is reached.
+   810                        
+   811                        NextChar:
+   812 00:0392: C4 29                        cpy     BUFLEN                  ; Any characters left?
+   813 00:0394: 90 01                        bcc     $+3
+   814 00:0396: 60                           rts
+   815 00:0397: B9 00 02                     lda     BUFFER,y
+   816 00:039A: C8                           iny
+   817 00:039B: 4C xx xx                     jmp     ToUpperCase
+   818                        
+   819                        ; Skip over any spaces until a non-space character or the end of the string
+   820                        ; is reached.
+   821                        
+   822                        SkipSpaces:
+   823 00:039E: 20 xx xx                     jsr     NextChar                ; Fetch next character
+   824 00:03A1: 90 01                        bcc     $+3                     ; Any left?
+   825 00:03A3: 60                           rts                             ; No
+   826 00:03A4: C9 20                        cmp     #' '                    ; Is it a space?
+   827 00:03A6: F0 F6                        beq     SkipSpaces              ; Yes, try again
+   828 00:03A8: 18                           clc
+   829 00:03A9: 60                           rts                             ; Done
+   830                        
+   831                        ; Clear the buffer and the add the command character in A.
+   832                        
+   833                        StartCommand:
+   834 00:03AA: 64 29                        stz     BUFLEN                  ; Clear the character count
+   835                        
+   836                        ; Append the character in A to the command being built updating the length.
+   837                        
+   838                        BuildCommand:
+   839 00:03AC: A4 29                        ldy     BUFLEN
+   840 00:03AE: E6 29                        inc     BUFLEN
+   841 00:03B0: 99 00 02                     sta     BUFFER,y
+   842 00:03B3: 60                           rts
+   843                        
+   844                        ; Convert the value in A into hex characters and append to the command buffer.
+   845                        
+   846                        BuildByte:
+   847 00:03B4: 48                           pha                             ; Save the value
+   848 00:03B5: 4A                           lsr     a                       ; Shift MS nybble down
+   849 00:03B6: 4A                           lsr     a
+   850 00:03B7: 4A                           lsr     a
+   851 00:03B8: 4A                           lsr     a
+   852 00:03B9: 20 xx xx                     jsr     HexToAscii              ; Convert to ASCII
+  Thu Aug  8 2024  9:30                                                                                                    Page 18
+
+
+   853 00:03BC: 20 xx xx                     jsr     BuildCommand            ; .. and add to command
+   854 00:03BF: 68                           pla                             ; Pull LS nybble
+   855 00:03C0: 20 xx xx                     jsr     HexToAscii              ; Convert to ASCII
+   856 00:03C3: 4C xx xx                     jmp     BuildCommand            ; .. and add to command
+   857                        
+   858                        ;===============================================================================
+   859                        ; Character Classification
+   860                        ;-------------------------------------------------------------------------------
+   861                        
+   862                        ; If the character in MD_ACC is lower case then convert it to upper case.
+   863                        
+   864                        ToUpperCase:
+   865 00:03C6: 20 xx xx                     jsr     IsLowerCase             ; Test the character
+   866 00:03C9: 90 02                        bcc     $+4
+   867 00:03CB: E9 20                        sbc     #32                     ; Convert lower case
+   868 00:03CD: 18                           clc
+   869 00:03CE: 60                           rts                             ; Done
+   870                        
+   871                        ; Determine if the character in MD_ACC is a lower case letter. Set the carry if it
+   872                        ; is, otherwise clear it.
+   873                        
+   874                                        longa   off
+   875                        IsLowerCase:
+   876 00:03CF: C9 61                        cmp     #'a'                    ; Between a and z?
+   877 00:03D1: 90 06                        bcc     ClearCarry
+   878 00:03D3: C9 7B                        cmp     #'z'+1
+   879 00:03D5: B0 02                        bcs     ClearCarry
+   880 00:03D7: 38           SetCarry:       sec
+   881 00:03D8: 60                           rts
+   882 00:03D9: 18           ClearCarry:     clc
+   883 00:03DA: 60                           rts
+   884                        
+   885                        ; Determine if the character in MD_ACC is a hex character. Set the carry if it is,
+   886                        ; otherwise clear it.
+   887                        
+   888                                        longa   off
+   889                        IsHexDigit:
+   890 00:03DB: C9 30                        cmp     #'0'                    ; Between 0 and 9?
+   891 00:03DD: 90 FA                        bcc     ClearCarry
+   892 00:03DF: C9 3A                        cmp     #'9'+1
+   893 00:03E1: 90 F4                        bcc     SetCarry
+   894 00:03E3: C9 41                        cmp     #'A'                    ; Between MD_ACC and F?
+   895 00:03E5: 90 F2                        bcc     ClearCarry
+   896 00:03E7: C9 47                        cmp     #'F'+1
+   897 00:03E9: 90 EC                        bcc     SetCarry
+   898 00:03EB: 80 EC                        bra     ClearCarry
+   899                        
+   900                        ; Determine if the character in MD_ACC is a printable character. Set the carry if it
+   901                        ; is, otherwise clear it.
+   902                        
+   903                                        longa   off
+   904                        IsPrintable:
+   905 00:03ED: C9 20                        cmp     #' '
+   906 00:03EF: 90 E8                        bcc     ClearCarry
+   907 00:03F1: C9 7F                        cmp     #DEL
+   908 00:03F3: 90 E2                        bcc     SetCarry
+   909 00:03F5: 80 E2                        bra     ClearCarry
+   910                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 19
+
+
+   911                        ;===============================================================================
+   912                        ; Display Utilities
+   913                        ;-------------------------------------------------------------------------------
+   914                        
+   915                        ; Display the value in MD_ACC as two hexadecimal digits.
+   916                        
+   917                        TxHex2:
+   918 00:03F7: 48                           pha                             ; Save the original byte
+   919 00:03F8: 4A                           lsr     a                       ; Shift down hi nybble
+   920 00:03F9: 4A                           lsr     a
+   921 00:03FA: 4A                           lsr     a
+   922 00:03FB: 4A                           lsr     a
+   923 00:03FC: 20 xx xx                     jsr     UartHex                 ; Display
+   924 00:03FF: 68                           pla                             ; Recover data byte
+   925                        
+   926                        ; Display the LSB of the value in MD_ACC as a hexadecimal digit using decimal
+   927                        ; arithmetic to do the conversion.
+   928                        
+   929                        UartHex:
+   930 00:0400: 20 xx xx                     jsr     HexToAscii              ; Convert to ASCII
+   931 00:0403: 4C xx xx                     jmp     UartTx                  ; And display
+   932                        
+   933                        ; Convert a LSB of the value in MD_ACC to a hexadecimal digit using decimal
+   934                        ; arithmetic.
+   935                        
+   936                        HexToAscii:
+   937 00:0406: 29 0F                        and     #$0f                    ; Strip out lo nybble
+   938 00:0408: F8                           sed                             ; Convert to ASCII
+   939 00:0409: 18                           clc
+   940 00:040A: 69 90                        adc     #$90
+   941 00:040C: 69 40                        adc     #$40
+   942 00:040E: D8                           cld
+   943 00:040F: 60                           rts                             ; Done
+   944                        
+   945                        ; Display the string of characters starting a the memory location pointed to by
+   946                        ; X (16-bits).
+   947                        
+   948                                        .longa  off
+   949                                        .longi  on
+   950                        TxStr:
+   951 00:0410: BD 00 00                     lda     0,x                     ; Fetch the next character
+   952 00:0413: D0 01                        bne     $+3                     ; Return it end of string
+   953 00:0415: 60                           rts
+   954 00:0416: 20 xx xx                     jsr     UartTx                  ; Otherwise print it
+   955 00:0419: E8                           inx                             ; Bump the pointer
+   956 00:041A: 80 F4                        bra     TxStr                   ; And repeat
+   957                        
+   958                        ; Display a CR/LF control character sequence.
+   959                        
+   960                        TxCRLF:
+   961 00:041C: 20 xx xx                     jsr     TxCR                    ; Transmit a CR
+   962 00:041F: A9 0A                        lda     #LF                     ; Followed by a LF
+   963 00:0421: 4C xx xx                     jmp     UartTx
+   964                        
+   965                        TxCR:
+   966 00:0424: A9 0D                        lda     #CR                     ; Transmit a CR
+   967 00:0426: 4C xx xx                     jmp     UartTx
+   968                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 20
+
+
+   969                        TxSpace:
+   970 00:0429: A9 20                        lda     #' '                    ; Transmit a space
+   971 00:042B: 4C xx xx                     jmp     UartTx
+   972                        
+   973                        ;===============================================================================
+   974                        ;-------------------------------------------------------------------------------
+   975                        
+   976                        ;
+   977                        
+   978                                        longa   off
+   979                                        longi   off
+   980                        TxCodeBytes:
+   981 00:042E: A7 2B                        lda     [ADDR_S]                ; Fetch the opcode
+   982 00:0430: 20 xx xx                     jsr     OpcodeSize              ; and work out its size
+   983 00:0433: AA                           tax
+   984 00:0434: A0 00                        ldy     #0                      ; Clear byte count
+   985                        CodeLoop:
+   986 00:0436: B7 2B                        lda     [ADDR_S],Y              ; Fetch a byte of code
+   987 00:0438: 20 xx xx                     jsr     TxHex2
+   988 00:043B: 20 xx xx                     jsr     TxSpace
+   989 00:043E: C8                           iny
+   990 00:043F: CA                           dex
+   991 00:0440: D0 F4                        bne     CodeLoop
+   992                        PadLoop:
+   993 00:0442: C0 04                        cpy     #4                      ; Need to pad out?
+   994 00:0444: D0 01                        bne     $+3
+   995 00:0446: 60                           rts
+   996 00:0447: 20 xx xx                     jsr     TxSpace
+   997 00:044A: 20 xx xx                     jsr     TxSpace
+   998 00:044D: 20 xx xx                     jsr     TxSpace
+   999 00:0450: C8                           iny
+  1000 00:0451: 80 EF                        bra     PadLoop
+  1001                        
+  1002                        ;
+  1003                        
+  1004                                        longa   off
+  1005                                        longi   off
+  1006                        TxSymbolic:
+  1007 00:0453: A7 2B                        lda     [ADDR_S]                ; Fetch opcode
+  1008 00:0455: 48                           pha
+  1009 00:0456: 20 xx xx                     jsr     TxOpcode
+  1010 00:0459: 68                           pla
+  1011 00:045A: 20 xx xx                     jsr     TxOperand
+  1012 00:045D: 60                           rts
+  1013                        
+  1014                        ;
+  1015                        
+  1016                                        longa   off
+  1017                                        longi   off
+  1018                        TxOpcode:
+  1019 00:045E: 08                           php                             ; Save register sizes
+  1020 00:045F: AA                           tax                             ; Work out the mnemonic
+  1021 00:0460: BD xx xx                     lda     OPCODES,x
+  1022 00:0463: AA                           tax
+  1023                                        long_a
++ 1023 00:0464: C2 20                        rep     #M_FLAG
++ 1023                                        longa   on
+  1024 00:0466: BD xx xx                     lda     MNEMONICS,x
+  Thu Aug  8 2024  9:30                                                                                                    Page 21
+
+
+  1025                        
+  1026 00:0469: 48                           pha                             ; Save last character
+  1027 00:046A: 4A                           lsr     a                       ; Shift second down
+  1028 00:046B: 4A                           lsr     a
+  1029 00:046C: 4A                           lsr     a
+  1030 00:046D: 4A                           lsr     a
+  1031 00:046E: 4A                           lsr     a
+  1032 00:046F: 48                           pha                             ; Save it
+  1033 00:0470: 4A                           lsr     a                       ; Shift first down
+  1034 00:0471: 4A                           lsr     a
+  1035 00:0472: 4A                           lsr     a
+  1036 00:0473: 4A                           lsr     a
+  1037 00:0474: 4A                           lsr     a
+  1038 00:0475: 20 xx xx                     jsr     ExpandMnem              ; Print first
+  1039 00:0478: 68                           pla
+  1040 00:0479: 20 xx xx                     jsr     ExpandMnem              ; .. second
+  1041 00:047C: 68                           pla
+  1042 00:047D: 20 xx xx                     jsr     ExpandMnem              ; .. and third
+  1043 00:0480: 28                           plp
+  1044 00:0481: 20 xx xx                     jsr     TxSpace
+  1045 00:0484: 60                           rts
+  1046                        
+  1047                        ExpandMnem:
+  1048 00:0485: 18                           clc
+  1049 00:0486: 29 1F 00                     and     #$1f                    ; Expand letter code
+  1050 00:0489: 69 40 00                     adc     #'@'
+  1051 00:048C: 4C xx xx                     jmp     UartTx
+  1052                        
+  1053                        ;
+  1054                        
+  1055                                        longa   off
+  1056                                        longi   off
+  1057                        TxOperand:
+  1058 00:048F: AA                           tax                             ; Work out addressing mode
+  1059 00:0490: BD xx xx                     lda     MODES,x
+  1060 00:0493: AA                           tax
+  1061 00:0494: 7C xx xx                     jmp     (MODE_SHOW,x)
+  1062                        
+  1063                        MODE_SHOW:
+  1064 00:0497: xx xx                        dw      TxAbsolute              ; a
+  1065 00:0499: xx xx                        dw      TxAccumulator           ; A
+  1066 00:049B: xx xx                        dw      TxAbsoluteX             ; a,x
+  1067 00:049D: xx xx                        dw      TxAbsoluteY             ; a,y
+  1068 00:049F: xx xx                        dw      TxLong                  ; al
+  1069 00:04A1: xx xx                        dw      TxLongX                 ; al,x
+  1070 00:04A3: xx xx                        dw      TxAbsoluteIndirect      ; (a)
+  1071 00:04A5: xx xx                        dw      TxAbsoluteXIndirect     ; (a,x)
+  1072 00:04A7: xx xx                        dw      TxDirect                ; d
+  1073 00:04A9: xx xx                        dw      TxStack                 ; d,s
+  1074 00:04AB: xx xx                        dw      TxDirectX               ; d,x
+  1075 00:04AD: xx xx                        dw      TxDirectY               ; d,y
+  1076 00:04AF: xx xx                        dw      TxDirectIndirect        ; (d)
+  1077 00:04B1: xx xx                        dw      TxDirectIndirectLong    ; [d]
+  1078 00:04B3: xx xx                        dw      TxStackIndirectY        ; (d,s),y
+  1079 00:04B5: xx xx                        dw      TxDirectXIndirect       ; (d,x)
+  1080 00:04B7: xx xx                        dw      TxDirectIndirectY       ; (d),y
+  1081 00:04B9: xx xx                        dw      TxDirectIndirectLongY   ; [d],y
+  1082 00:04BB: xx xx                        dw      TxImplied               ;
+  Thu Aug  8 2024  9:30                                                                                                    Page 22
+
+
+  1083 00:04BD: xx xx                        dw      TxRelative              ; r
+  1084 00:04BF: xx xx                        dw      TxRelativeLong          ; rl
+  1085 00:04C1: xx xx                        dw      TxMove                  ; xyc
+  1086 00:04C3: xx xx                        dw      TxImmediateM            ; # (A & M)
+  1087 00:04C5: xx xx                        dw      TxImmediateByte         ; # (BRK/COP/WDM)
+  1088 00:04C7: xx xx                        dw      TxImmediateX            ; # (X or Y)
+  1089                        
+  1090                        
+  1091                        TxAccumulator:
+  1092 00:04C9: A9 41                        lda     #'A'
+  1093 00:04CB: 4C xx xx                     jmp     UartTx
+  1094                        
+  1095                        TxImmediateM:
+  1096 00:04CE: A9 20                        lda     #M_FLAG
+  1097 00:04D0: 24 28                        bit     FLAGS
+  1098 00:04D2: F0 2E                        beq     TxImmediateWord
+  1099 00:04D4: 80 25                        bra     TxImmediateByte
+  1100                        
+  1101                        TxImmediateX:
+  1102 00:04D6: A9 10                        lda     #X_FLAG
+  1103 00:04D8: 24 28                        bit     FLAGS
+  1104 00:04DA: F0 26                        beq     TxImmediateWord
+  1105 00:04DC: 80 1D                        bra     TxImmediateByte
+  1106                        
+  1107                        TxImplied:
+  1108 00:04DE: 60                           rts
+  1109                        
+  1110                        TxMove:
+  1111 00:04DF: A9 24                        lda     #'$'
+  1112 00:04E1: 20 xx xx                     jsr     UartTx
+  1113 00:04E4: A0 01                        ldy     #1
+  1114 00:04E6: B7 2B                        lda     [ADDR_S],Y
+  1115 00:04E8: 20 xx xx                     jsr     TxHex2
+  1116 00:04EB: A9 2C                        lda     #','
+  1117 00:04ED: 20 xx xx                     jsr     UartTx
+  1118 00:04F0: A9 24                        lda     #'$'
+  1119 00:04F2: 20 xx xx                     jsr     UartTx
+  1120 00:04F5: C8                           iny
+  1121 00:04F6: B7 2B                        lda     [ADDR_S],Y
+  1122 00:04F8: 4C xx xx                     jmp     TxHex2
+  1123                        
+  1124                        TxImmediateByte:
+  1125 00:04FB: A9 23                        lda     #'#'
+  1126 00:04FD: 20 xx xx                     jsr     UartTx
+  1127 00:0500: 80 14                        bra     TxDirect
+  1128                        
+  1129                        TxImmediateWord:
+  1130 00:0502: A9 23                        lda     #'#'
+  1131 00:0504: 20 xx xx                     jsr     UartTx
+  1132 00:0507: 80 33                        bra     TxAbsolute
+  1133                        
+  1134                        TxStack:
+  1135 00:0509: 20 xx xx                     jsr     TxDirect
+  1136 00:050C: A9 2C                        lda     #','
+  1137 00:050E: 20 xx xx                     jsr     UartTx
+  1138 00:0511: A9 53                        lda     #'S'
+  1139 00:0513: 4C xx xx                     jmp     UartTx
+  1140                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 23
+
+
+  1141                        TxDirect:
+  1142 00:0516: A9 24                        lda     #'$'
+  1143 00:0518: 20 xx xx                     jsr     UartTx
+  1144 00:051B: A0 01                        ldy     #1
+  1145 00:051D: B7 2B                        lda     [ADDR_S],Y
+  1146 00:051F: 4C xx xx                     jmp     TxHex2
+  1147                        
+  1148                        TxDirectX:
+  1149 00:0522: 20 xx xx                     jsr     TxDirect
+  1150 00:0525: A9 2C        TxX:            lda     #','
+  1151 00:0527: 20 xx xx                     jsr     UartTx
+  1152 00:052A: A9 58                        lda     #'X'
+  1153 00:052C: 4C xx xx                     jmp     UartTx
+  1154                        
+  1155                        TxDirectY:
+  1156 00:052F: 20 xx xx                     jsr     TxDirect
+  1157 00:0532: A9 2C        TxY:            lda     #','
+  1158 00:0534: 20 xx xx                     jsr     UartTx
+  1159 00:0537: A9 59                        lda     #'Y'
+  1160 00:0539: 4C xx xx                     jmp     UartTx
+  1161                        
+  1162                        TxAbsolute:
+  1163 00:053C: A9 24                        lda     #'$'
+  1164 00:053E: 20 xx xx                     jsr     UartTx
+  1165 00:0541: A0 02                        ldy     #2
+  1166 00:0543: B7 2B                        lda     [ADDR_S],Y
+  1167 00:0545: 20 xx xx                     jsr     TxHex2
+  1168 00:0548: 88                           dey
+  1169 00:0549: B7 2B                        lda     [ADDR_S],Y
+  1170 00:054B: 4C xx xx                     jmp     TxHex2
+  1171                        
+  1172                        TxAbsoluteX:
+  1173 00:054E: 20 xx xx                     jsr     TxAbsolute
+  1174 00:0551: 80 D2                        bra     TxX
+  1175                        
+  1176                        TxAbsoluteY:
+  1177 00:0553: 20 xx xx                     jsr     TxAbsolute
+  1178 00:0556: 80 DA                        bra     TxY
+  1179                        
+  1180                        TxLong:
+  1181 00:0558: A9 24                        lda     #'$'
+  1182 00:055A: 20 xx xx                     jsr     UartTx
+  1183 00:055D: A0 03                        ldy     #3
+  1184 00:055F: B7 2B                        lda     [ADDR_S],Y
+  1185 00:0561: 20 xx xx                     jsr     TxHex2
+  1186 00:0564: A9 3A                        lda     #':'
+  1187 00:0566: 20 xx xx                     jsr     UartTx
+  1188 00:0569: 88                           dey
+  1189 00:056A: B7 2B                        lda     [ADDR_S],Y
+  1190 00:056C: 20 xx xx                     jsr     TxHex2
+  1191 00:056F: 88                           dey
+  1192 00:0570: B7 2B                        lda     [ADDR_S],Y
+  1193 00:0572: 4C xx xx                     jmp     TxHex2
+  1194                        
+  1195                        TxLongX:
+  1196 00:0575: 20 xx xx                     jsr     TxLong
+  1197 00:0578: 80 AB                        bra     TxX
+  1198                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 24
+
+
+  1199                        TxAbsoluteIndirect:
+  1200 00:057A: A9 28                        lda     #'('
+  1201 00:057C: 20 xx xx                     jsr     UartTx
+  1202 00:057F: 20 xx xx                     jsr     TxAbsolute
+  1203 00:0582: A9 29                        lda     #')'
+  1204 00:0584: 4C xx xx                     jmp     UartTx
+  1205                        
+  1206                        TxAbsoluteXIndirect:
+  1207 00:0587: A9 28                        lda     #'('
+  1208 00:0589: 20 xx xx                     jsr     UartTx
+  1209 00:058C: 20 xx xx                     jsr     TxAbsoluteX
+  1210 00:058F: A9 29                        lda     #')'
+  1211 00:0591: 4C xx xx                     jmp     UartTx
+  1212                        
+  1213                        TxDirectIndirect:
+  1214 00:0594: A9 28                        lda     #'('
+  1215 00:0596: 20 xx xx                     jsr     UartTx
+  1216 00:0599: 20 xx xx                     jsr     TxDirect
+  1217 00:059C: A9 29                        lda     #')'
+  1218 00:059E: 4C xx xx                     jmp     UartTx
+  1219                        
+  1220                        TxDirectXIndirect:
+  1221 00:05A1: A9 28                        lda     #'('
+  1222 00:05A3: 20 xx xx                     jsr     UartTx
+  1223 00:05A6: 20 xx xx                     jsr     TxDirectX
+  1224 00:05A9: A9 29                        lda     #')'
+  1225 00:05AB: 4C xx xx                     jmp     UartTx
+  1226                        
+  1227                        TxDirectIndirectY:
+  1228 00:05AE: A9 28                        lda     #'('
+  1229 00:05B0: 20 xx xx                     jsr     UartTx
+  1230 00:05B3: 20 xx xx                     jsr     TxDirect
+  1231 00:05B6: A9 29                        lda     #')'
+  1232 00:05B8: 20 xx xx                     jsr     UartTx
+  1233 00:05BB: 4C xx xx                     jmp     TxY
+  1234                        
+  1235                        TxDirectIndirectLong:
+  1236 00:05BE: A9 5B                        lda     #'['
+  1237 00:05C0: 20 xx xx                     jsr     UartTx
+  1238 00:05C3: 20 xx xx                     jsr     TxDirect
+  1239 00:05C6: A9 5D                        lda     #']'
+  1240 00:05C8: 4C xx xx                     jmp     UartTx
+  1241                        
+  1242                        TxDirectIndirectLongY:
+  1243 00:05CB: 20 xx xx                     jsr     TxDirectIndirectLong
+  1244 00:05CE: 4C xx xx                     jmp     TxY
+  1245                        
+  1246                        TxStackIndirectY:
+  1247 00:05D1: A9 28                        lda     #'('
+  1248 00:05D3: 20 xx xx                     jsr     UartTx
+  1249 00:05D6: 20 xx xx                     jsr     TxStack
+  1250 00:05D9: A9 29                        lda     #')'
+  1251 00:05DB: 20 xx xx                     jsr     UartTx
+  1252 00:05DE: 4C xx xx                     jmp     TxY
+  1253                        
+  1254                        TxRelative:
+  1255 00:05E1: A6 2C                        ldx     ADDR_S+1                ; Work out next PC
+  1256 00:05E3: A5 2B                        lda     ADDR_S+0
+  Thu Aug  8 2024  9:30                                                                                                    Page 25
+
+
+  1257 00:05E5: 18                           clc
+  1258 00:05E6: 69 02                        adc     #2
+  1259 00:05E8: 90 01                        bcc     $+3
+  1260 00:05EA: E8                           inx
+  1261                        
+  1262 00:05EB: 48                           pha                             ; Add relative offset
+  1263 00:05EC: A0 01                        ldy     #1
+  1264 00:05EE: B7 2B                        lda     [ADDR_S],y
+  1265 00:05F0: 10 01                        bpl     $+3
+  1266 00:05F2: CA                           dex
+  1267 00:05F3: 18                           clc
+  1268 00:05F4: 63 01                        adc     1,s
+  1269 00:05F6: 83 01                        sta     1,s
+  1270 00:05F8: 90 01                        bcc     $+3
+  1271 00:05FA: E8                           inx
+  1272 00:05FB: 80 15                        bra     TxAddr
+  1273                        
+  1274                        TxRelativeLong:
+  1275 00:05FD: A6 2C                        ldx     ADDR_S+1                ; Work out next PC
+  1276 00:05FF: A5 2B                        lda     ADDR_S+0
+  1277 00:0601: 18                           clc
+  1278 00:0602: 69 03                        adc     #3
+  1279 00:0604: 90 01                        bcc     $+3
+  1280 00:0606: E8                           inx
+  1281                        
+  1282 00:0607: 18                           clc                             ; Add relative offset
+  1283 00:0608: A0 01                        ldy     #1
+  1284 00:060A: 77 2B                        adc     [ADDR_S],y
+  1285 00:060C: 48                           pha
+  1286 00:060D: C8                           iny
+  1287 00:060E: 8A                           txa
+  1288 00:060F: 77 2B                        adc     [ADDR_S],Y
+  1289 00:0611: AA                           tax
+  1290                        
+  1291                        TxAddr:
+  1292 00:0612: A9 24                        lda     #'$'                    ; Print address
+  1293 00:0614: 20 xx xx                     jsr     UartTx
+  1294 00:0617: 8A                           txa
+  1295 00:0618: 20 xx xx                     jsr     TxHex2
+  1296 00:061B: 68                           pla
+  1297 00:061C: 4C xx xx                     jmp     TxHex2
+  1298                        
+  1299                        ;  Returns the size of the opcode in A given the current flag settings.
+  1300                        
+  1301                                        longa   off
+  1302                                        longi   off
+  1303                        OpcodeSize:
+  1304 00:061F: AA                           tax                             ; Work out addressing mode
+  1305 00:0620: BD xx xx                     lda     MODES,x
+  1306 00:0623: AA                           tax
+  1307 00:0624: 7C xx xx                     jmp     (MODE_SIZE,x)
+  1308                        
+  1309                        MODE_SIZE:
+  1310 00:0627: xx xx                        dw      Size3                   ; a
+  1311 00:0629: xx xx                        dw      Size1                   ; A
+  1312 00:062B: xx xx                        dw      Size3                   ; a,x
+  1313 00:062D: xx xx                        dw      Size3                   ; a,y
+  1314 00:062F: xx xx                        dw      Size4                   ; al
+  Thu Aug  8 2024  9:30                                                                                                    Page 26
+
+
+  1315 00:0631: xx xx                        dw      Size4                   ; al,x
+  1316 00:0633: xx xx                        dw      Size3                   ; (a)
+  1317 00:0635: xx xx                        dw      Size3                   ; (a,x)
+  1318 00:0637: xx xx                        dw      Size2                   ; d
+  1319 00:0639: xx xx                        dw      Size2                   ; d,s
+  1320 00:063B: xx xx                        dw      Size2                   ; d,x
+  1321 00:063D: xx xx                        dw      Size2                   ; d,y
+  1322 00:063F: xx xx                        dw      Size2                   ; (d)
+  1323 00:0641: xx xx                        dw      Size2                   ; [d]
+  1324 00:0643: xx xx                        dw      Size2                   ; (d,s),y
+  1325 00:0645: xx xx                        dw      Size2                   ; (d,x)
+  1326 00:0647: xx xx                        dw      Size2                   ; (d),y
+  1327 00:0649: xx xx                        dw      Size2                   ; [d],y
+  1328 00:064B: xx xx                        dw      Size1                   ;
+  1329 00:064D: xx xx                        dw      Size2                   ; r
+  1330 00:064F: xx xx                        dw      Size3                   ; rl
+  1331 00:0651: xx xx                        dw      Size3                   ; xyc
+  1332 00:0653: xx xx                        dw      TestM                   ; # (A & M)
+  1333 00:0655: xx xx                        dw      Size2                   ; # (BRK/COP/WDM)
+  1334 00:0657: xx xx                        dw      TestX                   ; # (X or Y)
+  1335                        
+  1336                        TestM
+  1337 00:0659: A9 20                        lda     #M_FLAG                 ; Is M bit set?
+  1338 00:065B: 25 28                        and     FLAGS
+  1339 00:065D: F0 10                        beq     Size3                   ; No, word
+  1340 00:065F: 80 0B                        bra     Size2                   ; else byte
+  1341                        
+  1342                        TestX
+  1343 00:0661: A9 10                        lda     #X_FLAG                 ; Is X bit set?
+  1344 00:0663: 25 28                        and     FLAGS
+  1345 00:0665: F0 08                        beq     Size3                   ; No, word
+  1346 00:0667: 80 03                        bra     Size2                   ; else byte
+  1347                        
+  1348 00:0669: A9 01        Size1:          lda     #1
+  1349 00:066B: 60                           rts
+  1350 00:066C: A9 02        Size2:          lda     #2
+  1351 00:066E: 60                           rts
+  1352 00:066F: A9 03        Size3           lda     #3
+  1353 00:0671: 60                           rts
+  1354 00:0672: A9 04        Size4:          lda     #4
+  1355 00:0674: 60                           rts
+  1356                        
+  1357                        OPCODES:
+  1358 00:0675: 16 52 28 52                  db      OP_BRK,OP_ORA,OP_COP,OP_ORA     ; 00
+  1359 00:0679: A0 52 04 52                  db      OP_TSB,OP_ORA,OP_ASL,OP_ORA
+  1360 00:067D: 62 52 04 5E                  db      OP_PHP,OP_ORA,OP_ASL,OP_PHD
+  1361 00:0681: A0 52 04 52                  db      OP_TSB,OP_ORA,OP_ASL,OP_ORA
+  1362 00:0685: 12 52 52 52                  db      OP_BPL,OP_ORA,OP_ORA,OP_ORA     ; 10
+  1363 00:0689: 9E 52 04 52                  db      OP_TRB,OP_ORA,OP_ASL,OP_ORA
+  1364 00:068D: 1E 52 36 9A                  db      OP_CLC,OP_ORA,OP_INC,OP_TCS
+  1365 00:0691: 9E 52 04 52                  db      OP_TRB,OP_ORA,OP_ASL,OP_ORA
+  1366 00:0695: 42 02 40 02                  db      OP_JSR,OP_AND,OP_JSL,OP_AND     ; 20
+  1367 00:0699: 0C 02 76 02                  db      OP_BIT,OP_AND,OP_ROL,OP_AND
+  1368 00:069D: 6E 02 76 6C                  db      OP_PLP,OP_AND,OP_ROL,OP_PLD
+  1369 00:06A1: 0C 02 76 02                  db      OP_BIT,OP_AND,OP_ROL,OP_AND
+  1370 00:06A5: 0E 02 02 02                  db      OP_BMI,OP_AND,OP_AND,OP_AND     ; 30
+  1371 00:06A9: 0C 02 76 02                  db      OP_BIT,OP_AND,OP_ROL,OP_AND
+  1372 00:06AD: 82 02 2E A2                  db      OP_SEC,OP_AND,OP_DEC,OP_TSC
+  Thu Aug  8 2024  9:30                                                                                                    Page 27
+
+
+  1373 00:06B1: 0C 02 76 02                  db      OP_BIT,OP_AND,OP_ROL,OP_AND
+  1374 00:06B5: 7A 34 B2 34                  db      OP_RTI,OP_EOR,OP_WDM,OP_EOR     ; 40
+  1375 00:06B9: 4E 34 4A 34                  db      OP_MVP,OP_EOR,OP_LSR,OP_EOR
+  1376 00:06BD: 5A 34 4A 60                  db      OP_PHA,OP_EOR,OP_LSR,OP_PHK
+  1377 00:06C1: 3E 34 4A 34                  db      OP_JMP,OP_EOR,OP_LSR,OP_EOR
+  1378 00:06C5: 1A 34 34 34                  db      OP_BVC,OP_EOR,OP_EOR,OP_EOR     ; 50
+  1379 00:06C9: 4C 34 4A 34                  db      OP_MVN,OP_EOR,OP_LSR,OP_EOR
+  1380 00:06CD: 22 34 66 98                  db      OP_CLI,OP_EOR,OP_PHY,OP_TCD
+  1381 00:06D1: 3E 34 4A 34                  db      OP_JMP,OP_EOR,OP_LSR,OP_EOR
+  1382 00:06D5: 7E 00 58 00                  db      OP_RTS,OP_ADC,OP_PER,OP_ADC     ; 60
+  1383 00:06D9: 92 00 78 00                  db      OP_STZ,OP_ADC,OP_ROR,OP_ADC
+  1384 00:06DD: 68 00 78 7C                  db      OP_PLA,OP_ADC,OP_ROR,OP_RTL
+  1385 00:06E1: 3E 00 78 00                  db      OP_JMP,OP_ADC,OP_ROR,OP_ADC
+  1386 00:06E5: 1C 00 00 00                  db      OP_BVS,OP_ADC,OP_ADC,OP_ADC     ; 70
+  1387 00:06E9: 92 00 78 00                  db      OP_STZ,OP_ADC,OP_ROR,OP_ADC
+  1388 00:06ED: 86 00 72 9C                  db      OP_SEI,OP_ADC,OP_PLY,OP_TDC
+  1389 00:06F1: 3E 00 78 00                  db      OP_JMP,OP_ADC,OP_ROR,OP_ADC
+  1390 00:06F5: 14 8A 18 8A                  db      OP_BRA,OP_STA,OP_BRL,OP_STA     ; 80
+  1391 00:06F9: 90 8A 8E 8A                  db      OP_STY,OP_STA,OP_STX,OP_STA
+  1392 00:06FD: 32 0C A6 5C                  db      OP_DEY,OP_BIT,OP_TXA,OP_PHB
+  1393 00:0701: 90 8A 8E 8A                  db      OP_STY,OP_STA,OP_STX,OP_STA
+  1394 00:0705: 06 8A 8A 8A                  db      OP_BCC,OP_STA,OP_STA,OP_STA     ; 90
+  1395 00:0709: 90 8A 8E 8A                  db      OP_STY,OP_STA,OP_STX,OP_STA
+  1396 00:070D: AC 8A A8 AA                  db      OP_TYA,OP_STA,OP_TXS,OP_TXY
+  1397 00:0711: 92 8A 92 8A                  db      OP_STZ,OP_STA,OP_STZ,OP_STA
+  1398 00:0715: 48 44 46 44                  db      OP_LDY,OP_LDA,OP_LDX,OP_LDA     ; A0
+  1399 00:0719: 48 44 46 44                  db      OP_LDY,OP_LDA,OP_LDX,OP_LDA
+  1400 00:071D: 96 44 94 6A                  db      OP_TAY,OP_LDA,OP_TAX,OP_PLB
+  1401 00:0721: 48 44 46 44                  db      OP_LDY,OP_LDA,OP_LDX,OP_LDA
+  1402 00:0725: 08 44 44 44                  db      OP_BCS,OP_LDA,OP_LDA,OP_LDA     ; B0
+  1403 00:0729: 44 48 46 44                  db      OP_LDA,OP_LDY,OP_LDX,OP_LDA
+  1404 00:072D: 24 44 A4 AE                  db      OP_CLV,OP_LDA,OP_TSX,OP_TYX
+  1405 00:0731: 48 44 46 44                  db      OP_LDY,OP_LDA,OP_LDX,OP_LDA
+  1406 00:0735: 2C 26 74 26                  db      OP_CPY,OP_CMP,OP_REP,OP_CMP     ; C0
+  1407 00:0739: 2C 26 2E 26                  db      OP_CPY,OP_CMP,OP_DEC,OP_CMP
+  1408 00:073D: 3A 26 30 B0                  db      OP_INY,OP_CMP,OP_DEX,OP_WAI
+  1409 00:0741: 2C 26 2E 26                  db      OP_CPY,OP_CMP,OP_DEC,OP_CMP
+  1410 00:0745: 10 26 26 26                  db      OP_BNE,OP_CMP,OP_CMP,OP_CMP     ; D0
+  1411 00:0749: 56 26 2E 26                  db      OP_PEI,OP_CMP,OP_DEC,OP_CMP
+  1412 00:074D: 20 26 64 8C                  db      OP_CLD,OP_CMP,OP_PHX,OP_STP
+  1413 00:0751: 3C 26 2E 26                  db      OP_JML,OP_CMP,OP_DEC,OP_CMP
+  1414 00:0755: 2A 80 88 80                  db      OP_CPX,OP_SBC,OP_SEP,OP_SBC     ; E0
+  1415 00:0759: 2A 80 36 80                  db      OP_CPX,OP_SBC,OP_INC,OP_SBC
+  1416 00:075D: 38 80 50 B4                  db      OP_INX,OP_SBC,OP_NOP,OP_XBA
+  1417 00:0761: 2A 80 36 80                  db      OP_CPX,OP_SBC,OP_INC,OP_SBC
+  1418 00:0765: 0A 80 80 80                  db      OP_BEQ,OP_SBC,OP_SBC,OP_SBC     ; F0
+  1419 00:0769: 54 80 36 80                  db      OP_PEA,OP_SBC,OP_INC,OP_SBC
+  1420 00:076D: 84 80 70 B6                  db      OP_SED,OP_SBC,OP_PLX,OP_XCE
+  1421 00:0771: 42 80 36 80                  db      OP_JSR,OP_SBC,OP_INC,OP_SBC
+  1422                        
+  1423                        MODES:
+  1424 00:0775: 2E 1E 2E 12                  db      MD_INT,MD_DIX,MD_INT,MD_STK     ; 00
+  1425 00:0779: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1426 00:077D: 24 2C 02 24                  db      MD_IMP,MD_IMM,MD_ACC,MD_IMP
+  1427 00:0781: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1428 00:0785: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; 10
+  1429 00:0789: 10 14 14 22                  db      MD_DPG,MD_DPX,MD_DPX,MD_DLY
+  1430 00:078D: 24 06 02 24                  db      MD_IMP,MD_ABY,MD_ACC,MD_IMP
+  Thu Aug  8 2024  9:30                                                                                                    Page 28
+
+
+  1431 00:0791: 00 04 04 0A                  db      MD_ABS,MD_ABX,MD_ABX,MD_ALX
+  1432 00:0795: 00 1E 08 12                  db      MD_ABS,MD_DIX,MD_ALG,MD_STK     ; 20
+  1433 00:0799: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1434 00:079D: 24 2C 02 24                  db      MD_IMP,MD_IMM,MD_ACC,MD_IMP
+  1435 00:07A1: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1436 00:07A5: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; 30
+  1437 00:07A9: 14 14 14 22                  db      MD_DPX,MD_DPX,MD_DPX,MD_DLY
+  1438 00:07AD: 24 06 02 24                  db      MD_IMP,MD_ABY,MD_ACC,MD_IMP
+  1439 00:07B1: 04 04 04 0A                  db      MD_ABX,MD_ABX,MD_ABX,MD_ALX
+  1440 00:07B5: 24 1E 2E 12                  db      MD_IMP,MD_DIX,MD_INT,MD_STK     ; 40
+  1441 00:07B9: 2A 10 10 1A                  db      MD_MOV,MD_DPG,MD_DPG,MD_DLI
+  1442 00:07BD: 24 2C 02 24                  db      MD_IMP,MD_IMM,MD_ACC,MD_IMP
+  1443 00:07C1: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1444 00:07C5: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; 50
+  1445 00:07C9: 2A 14 14 22                  db      MD_MOV,MD_DPX,MD_DPX,MD_DLY
+  1446 00:07CD: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1447 00:07D1: 08 04 04 0A                  db      MD_ALG,MD_ABX,MD_ABX,MD_ALX
+  1448 00:07D5: 24 1E 24 12                  db      MD_IMP,MD_DIX,MD_IMP,MD_STK     ; 60
+  1449 00:07D9: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1450 00:07DD: 24 2C 02 24                  db      MD_IMP,MD_IMM,MD_ACC,MD_IMP
+  1451 00:07E1: 0C 00 00 08                  db      MD_AIN,MD_ABS,MD_ABS,MD_ALG
+  1452 00:07E5: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; 70
+  1453 00:07E9: 14 14 14 22                  db      MD_DPX,MD_DPX,MD_DPX,MD_DLY
+  1454 00:07ED: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1455 00:07F1: 0E 04 04 0A                  db      MD_AIX,MD_ABX,MD_ABX,MD_ALX
+  1456 00:07F5: 26 1E 28 12                  db      MD_REL,MD_DIX,MD_RLG,MD_STK     ; 80
+  1457 00:07F9: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1458 00:07FD: 24 2C 24 24                  db      MD_IMP,MD_IMM,MD_IMP,MD_IMP
+  1459 00:0801: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1460 00:0805: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; 90
+  1461 00:0809: 14 14 16 22                  db      MD_DPX,MD_DPX,MD_DPY,MD_DLY
+  1462 00:080D: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1463 00:0811: 00 04 04 0A                  db      MD_ABS,MD_ABX,MD_ABX,MD_ALX
+  1464 00:0815: 30 1E 30 12                  db      MD_IMX,MD_DIX,MD_IMX,MD_STK     ; A0
+  1465 00:0819: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1466 00:081D: 24 2C 24 24                  db      MD_IMP,MD_IMM,MD_IMP,MD_IMP
+  1467 00:0821: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1468 00:0825: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; B0
+  1469 00:0829: 14 14 16 22                  db      MD_DPX,MD_DPX,MD_DPY,MD_DLY
+  1470 00:082D: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1471 00:0831: 04 04 06 0A                  db      MD_ABX,MD_ABX,MD_ABY,MD_ALX
+  1472 00:0835: 30 1E 2E 12                  db      MD_IMX,MD_DIX,MD_INT,MD_STK     ; C0
+  1473 00:0839: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1474 00:083D: 24 2C 24 24                  db      MD_IMP,MD_IMM,MD_IMP,MD_IMP
+  1475 00:0841: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1476 00:0845: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; D0
+  1477 00:0849: 24 14 14 22                  db      MD_IMP,MD_DPX,MD_DPX,MD_DLY
+  1478 00:084D: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1479 00:0851: 0C 04 04 0A                  db      MD_AIN,MD_ABX,MD_ABX,MD_ALX
+  1480 00:0855: 30 1E 2E 12                  db      MD_IMX,MD_DIX,MD_INT,MD_STK     ; E0
+  1481 00:0859: 10 10 10 1A                  db      MD_DPG,MD_DPG,MD_DPG,MD_DLI
+  1482 00:085D: 24 2C 24 24                  db      MD_IMP,MD_IMM,MD_IMP,MD_IMP
+  1483 00:0861: 00 00 00 08                  db      MD_ABS,MD_ABS,MD_ABS,MD_ALG
+  1484 00:0865: 26 20 18 1C                  db      MD_REL,MD_DIY,MD_DIN,MD_SKY     ; F0
+  1485 00:0869: 24 14 14 22                  db      MD_IMP,MD_DPX,MD_DPX,MD_DLY
+  1486 00:086D: 24 06 24 24                  db      MD_IMP,MD_ABY,MD_IMP,MD_IMP
+  1487 00:0871: 0E 04 04 0A                  db      MD_AIX,MD_ABX,MD_ABX,MD_ALX
+  1488                        
+  Thu Aug  8 2024  9:30                                                                                                    Page 29
+
+
+  1489                        MNEMONICS:
+  1490                                        MNEM    'A','D','C'
++ 1490 00:0875: 83 04                        dw      (((('A'-'@')<<5)|('D'-'@'))<<5)|('C'-'@')
+  1491                                        MNEM    'A','N','D'
++ 1491 00:0877: C4 05                        dw      (((('A'-'@')<<5)|('N'-'@'))<<5)|('D'-'@')
+  1492                                        MNEM    'A','S','L'
++ 1492 00:0879: 6C 06                        dw      (((('A'-'@')<<5)|('S'-'@'))<<5)|('L'-'@')
+  1493                                        MNEM    'B','C','C'
++ 1493 00:087B: 63 08                        dw      (((('B'-'@')<<5)|('C'-'@'))<<5)|('C'-'@')
+  1494                                        MNEM    'B','C','S'
++ 1494 00:087D: 73 08                        dw      (((('B'-'@')<<5)|('C'-'@'))<<5)|('S'-'@')
+  1495                                        MNEM    'B','E','Q'
++ 1495 00:087F: B1 08                        dw      (((('B'-'@')<<5)|('E'-'@'))<<5)|('Q'-'@')
+  1496                                        MNEM    'B','I','T'
++ 1496 00:0881: 34 09                        dw      (((('B'-'@')<<5)|('I'-'@'))<<5)|('T'-'@')
+  1497                                        MNEM    'B','M','I'
++ 1497 00:0883: A9 09                        dw      (((('B'-'@')<<5)|('M'-'@'))<<5)|('I'-'@')
+  1498                                        MNEM    'B','N','E'
++ 1498 00:0885: C5 09                        dw      (((('B'-'@')<<5)|('N'-'@'))<<5)|('E'-'@')
+  1499                                        MNEM    'B','P','L'
++ 1499 00:0887: 0C 0A                        dw      (((('B'-'@')<<5)|('P'-'@'))<<5)|('L'-'@')
+  1500                                        MNEM    'B','R','A'
++ 1500 00:0889: 41 0A                        dw      (((('B'-'@')<<5)|('R'-'@'))<<5)|('A'-'@')
+  1501                                        MNEM    'B','R','K'
++ 1501 00:088B: 4B 0A                        dw      (((('B'-'@')<<5)|('R'-'@'))<<5)|('K'-'@')
+  1502                                        MNEM    'B','R','L'
++ 1502 00:088D: 4C 0A                        dw      (((('B'-'@')<<5)|('R'-'@'))<<5)|('L'-'@')
+  1503                                        MNEM    'B','V','C'
++ 1503 00:088F: C3 0A                        dw      (((('B'-'@')<<5)|('V'-'@'))<<5)|('C'-'@')
+  1504                                        MNEM    'B','V','S'
++ 1504 00:0891: D3 0A                        dw      (((('B'-'@')<<5)|('V'-'@'))<<5)|('S'-'@')
+  1505                                        MNEM    'C','L','C'
++ 1505 00:0893: 83 0D                        dw      (((('C'-'@')<<5)|('L'-'@'))<<5)|('C'-'@')
+  1506                                        MNEM    'C','L','D'
++ 1506 00:0895: 84 0D                        dw      (((('C'-'@')<<5)|('L'-'@'))<<5)|('D'-'@')
+  1507                                        MNEM    'C','L','I'
++ 1507 00:0897: 89 0D                        dw      (((('C'-'@')<<5)|('L'-'@'))<<5)|('I'-'@')
+  1508                                        MNEM    'C','L','V'
++ 1508 00:0899: 96 0D                        dw      (((('C'-'@')<<5)|('L'-'@'))<<5)|('V'-'@')
+  1509                                        MNEM    'C','M','P'
++ 1509 00:089B: B0 0D                        dw      (((('C'-'@')<<5)|('M'-'@'))<<5)|('P'-'@')
+  1510                                        MNEM    'C','O','P'
++ 1510 00:089D: F0 0D                        dw      (((('C'-'@')<<5)|('O'-'@'))<<5)|('P'-'@')
+  1511                                        MNEM    'C','P','X'
++ 1511 00:089F: 18 0E                        dw      (((('C'-'@')<<5)|('P'-'@'))<<5)|('X'-'@')
+  1512                                        MNEM    'C','P','Y'
++ 1512 00:08A1: 19 0E                        dw      (((('C'-'@')<<5)|('P'-'@'))<<5)|('Y'-'@')
+  1513                                        MNEM    'D','E','C'
++ 1513 00:08A3: A3 10                        dw      (((('D'-'@')<<5)|('E'-'@'))<<5)|('C'-'@')
+  1514                                        MNEM    'D','E','X'
++ 1514 00:08A5: B8 10                        dw      (((('D'-'@')<<5)|('E'-'@'))<<5)|('X'-'@')
+  1515                                        MNEM    'D','E','Y'
++ 1515 00:08A7: B9 10                        dw      (((('D'-'@')<<5)|('E'-'@'))<<5)|('Y'-'@')
+  1516                                        MNEM    'E','O','R'
++ 1516 00:08A9: F2 15                        dw      (((('E'-'@')<<5)|('O'-'@'))<<5)|('R'-'@')
+  1517                                        MNEM    'I','N','C'
++ 1517 00:08AB: C3 25                        dw      (((('I'-'@')<<5)|('N'-'@'))<<5)|('C'-'@')
+  1518                                        MNEM    'I','N','X'
+  Thu Aug  8 2024  9:30                                                                                                    Page 30
+
+
++ 1518 00:08AD: D8 25                        dw      (((('I'-'@')<<5)|('N'-'@'))<<5)|('X'-'@')
+  1519                                        MNEM    'I','N','Y'
++ 1519 00:08AF: D9 25                        dw      (((('I'-'@')<<5)|('N'-'@'))<<5)|('Y'-'@')
+  1520                                        MNEM    'J','M','L'
++ 1520 00:08B1: AC 29                        dw      (((('J'-'@')<<5)|('M'-'@'))<<5)|('L'-'@')
+  1521                                        MNEM    'J','M','P'
++ 1521 00:08B3: B0 29                        dw      (((('J'-'@')<<5)|('M'-'@'))<<5)|('P'-'@')
+  1522                                        MNEM    'J','S','L'
++ 1522 00:08B5: 6C 2A                        dw      (((('J'-'@')<<5)|('S'-'@'))<<5)|('L'-'@')
+  1523                                        MNEM    'J','S','R'
++ 1523 00:08B7: 72 2A                        dw      (((('J'-'@')<<5)|('S'-'@'))<<5)|('R'-'@')
+  1524                                        MNEM    'L','D','A'
++ 1524 00:08B9: 81 30                        dw      (((('L'-'@')<<5)|('D'-'@'))<<5)|('A'-'@')
+  1525                                        MNEM    'L','D','X'
++ 1525 00:08BB: 98 30                        dw      (((('L'-'@')<<5)|('D'-'@'))<<5)|('X'-'@')
+  1526                                        MNEM    'L','D','Y'
++ 1526 00:08BD: 99 30                        dw      (((('L'-'@')<<5)|('D'-'@'))<<5)|('Y'-'@')
+  1527                                        MNEM    'L','S','R'
++ 1527 00:08BF: 72 32                        dw      (((('L'-'@')<<5)|('S'-'@'))<<5)|('R'-'@')
+  1528                                        MNEM    'M','V','N'
++ 1528 00:08C1: CE 36                        dw      (((('M'-'@')<<5)|('V'-'@'))<<5)|('N'-'@')
+  1529                                        MNEM    'M','V','P'
++ 1529 00:08C3: D0 36                        dw      (((('M'-'@')<<5)|('V'-'@'))<<5)|('P'-'@')
+  1530                                        MNEM    'N','O','P'
++ 1530 00:08C5: F0 39                        dw      (((('N'-'@')<<5)|('O'-'@'))<<5)|('P'-'@')
+  1531                                        MNEM    'O','R','A'
++ 1531 00:08C7: 41 3E                        dw      (((('O'-'@')<<5)|('R'-'@'))<<5)|('A'-'@')
+  1532                                        MNEM    'P','E','A'
++ 1532 00:08C9: A1 40                        dw      (((('P'-'@')<<5)|('E'-'@'))<<5)|('A'-'@')
+  1533                                        MNEM    'P','E','I'
++ 1533 00:08CB: A9 40                        dw      (((('P'-'@')<<5)|('E'-'@'))<<5)|('I'-'@')
+  1534                                        MNEM    'P','E','R'
++ 1534 00:08CD: B2 40                        dw      (((('P'-'@')<<5)|('E'-'@'))<<5)|('R'-'@')
+  1535                                        MNEM    'P','H','A'
++ 1535 00:08CF: 01 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('A'-'@')
+  1536                                        MNEM    'P','H','B'
++ 1536 00:08D1: 02 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('B'-'@')
+  1537                                        MNEM    'P','H','D'
++ 1537 00:08D3: 04 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('D'-'@')
+  1538                                        MNEM    'P','H','K'
++ 1538 00:08D5: 0B 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('K'-'@')
+  1539                                        MNEM    'P','H','P'
++ 1539 00:08D7: 10 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('P'-'@')
+  1540                                        MNEM    'P','H','X'
++ 1540 00:08D9: 18 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('X'-'@')
+  1541                                        MNEM    'P','H','Y'
++ 1541 00:08DB: 19 41                        dw      (((('P'-'@')<<5)|('H'-'@'))<<5)|('Y'-'@')
+  1542                                        MNEM    'P','L','A'
++ 1542 00:08DD: 81 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('A'-'@')
+  1543                                        MNEM    'P','L','B'
++ 1543 00:08DF: 82 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('B'-'@')
+  1544                                        MNEM    'P','L','D'
++ 1544 00:08E1: 84 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('D'-'@')
+  1545                                        MNEM    'P','L','P'
++ 1545 00:08E3: 90 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('P'-'@')
+  1546                                        MNEM    'P','L','X'
++ 1546 00:08E5: 98 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('X'-'@')
+  1547                                        MNEM    'P','L','Y'
+  Thu Aug  8 2024  9:30                                                                                                    Page 31
+
+
++ 1547 00:08E7: 99 41                        dw      (((('P'-'@')<<5)|('L'-'@'))<<5)|('Y'-'@')
+  1548                                        MNEM    'R','E','P'
++ 1548 00:08E9: B0 48                        dw      (((('R'-'@')<<5)|('E'-'@'))<<5)|('P'-'@')
+  1549                                        MNEM    'R','O','L'
++ 1549 00:08EB: EC 49                        dw      (((('R'-'@')<<5)|('O'-'@'))<<5)|('L'-'@')
+  1550                                        MNEM    'R','O','R'
++ 1550 00:08ED: F2 49                        dw      (((('R'-'@')<<5)|('O'-'@'))<<5)|('R'-'@')
+  1551                                        MNEM    'R','T','I'
++ 1551 00:08EF: 89 4A                        dw      (((('R'-'@')<<5)|('T'-'@'))<<5)|('I'-'@')
+  1552                                        MNEM    'R','T','L'
++ 1552 00:08F1: 8C 4A                        dw      (((('R'-'@')<<5)|('T'-'@'))<<5)|('L'-'@')
+  1553                                        MNEM    'R','T','S'
++ 1553 00:08F3: 93 4A                        dw      (((('R'-'@')<<5)|('T'-'@'))<<5)|('S'-'@')
+  1554                                        MNEM    'S','B','C'
++ 1554 00:08F5: 43 4C                        dw      (((('S'-'@')<<5)|('B'-'@'))<<5)|('C'-'@')
+  1555                                        MNEM    'S','E','C'
++ 1555 00:08F7: A3 4C                        dw      (((('S'-'@')<<5)|('E'-'@'))<<5)|('C'-'@')
+  1556                                        MNEM    'S','E','D'
++ 1556 00:08F9: A4 4C                        dw      (((('S'-'@')<<5)|('E'-'@'))<<5)|('D'-'@')
+  1557                                        MNEM    'S','E','I'
++ 1557 00:08FB: A9 4C                        dw      (((('S'-'@')<<5)|('E'-'@'))<<5)|('I'-'@')
+  1558                                        MNEM    'S','E','P'
++ 1558 00:08FD: B0 4C                        dw      (((('S'-'@')<<5)|('E'-'@'))<<5)|('P'-'@')
+  1559                                        MNEM    'S','T','A'
++ 1559 00:08FF: 81 4E                        dw      (((('S'-'@')<<5)|('T'-'@'))<<5)|('A'-'@')
+  1560                                        MNEM    'S','T','P'
++ 1560 00:0901: 90 4E                        dw      (((('S'-'@')<<5)|('T'-'@'))<<5)|('P'-'@')
+  1561                                        MNEM    'S','T','X'
++ 1561 00:0903: 98 4E                        dw      (((('S'-'@')<<5)|('T'-'@'))<<5)|('X'-'@')
+  1562                                        MNEM    'S','T','Y'
++ 1562 00:0905: 99 4E                        dw      (((('S'-'@')<<5)|('T'-'@'))<<5)|('Y'-'@')
+  1563                                        MNEM    'S','T','Z'
++ 1563 00:0907: 9A 4E                        dw      (((('S'-'@')<<5)|('T'-'@'))<<5)|('Z'-'@')
+  1564                                        MNEM    'T','A','X'
++ 1564 00:0909: 38 50                        dw      (((('T'-'@')<<5)|('A'-'@'))<<5)|('X'-'@')
+  1565                                        MNEM    'T','A','Y'
++ 1565 00:090B: 39 50                        dw      (((('T'-'@')<<5)|('A'-'@'))<<5)|('Y'-'@')
+  1566                                        MNEM    'T','C','D'
++ 1566 00:090D: 64 50                        dw      (((('T'-'@')<<5)|('C'-'@'))<<5)|('D'-'@')
+  1567                                        MNEM    'T','C','S'
++ 1567 00:090F: 73 50                        dw      (((('T'-'@')<<5)|('C'-'@'))<<5)|('S'-'@')
+  1568                                        MNEM    'T','D','C'
++ 1568 00:0911: 83 50                        dw      (((('T'-'@')<<5)|('D'-'@'))<<5)|('C'-'@')
+  1569                                        MNEM    'T','R','B'
++ 1569 00:0913: 42 52                        dw      (((('T'-'@')<<5)|('R'-'@'))<<5)|('B'-'@')
+  1570                                        MNEM    'T','S','B'
++ 1570 00:0915: 62 52                        dw      (((('T'-'@')<<5)|('S'-'@'))<<5)|('B'-'@')
+  1571                                        MNEM    'T','S','C'
++ 1571 00:0917: 63 52                        dw      (((('T'-'@')<<5)|('S'-'@'))<<5)|('C'-'@')
+  1572                                        MNEM    'T','S','X'
++ 1572 00:0919: 78 52                        dw      (((('T'-'@')<<5)|('S'-'@'))<<5)|('X'-'@')
+  1573                                        MNEM    'T','X','A'
++ 1573 00:091B: 01 53                        dw      (((('T'-'@')<<5)|('X'-'@'))<<5)|('A'-'@')
+  1574                                        MNEM    'T','X','S'
++ 1574 00:091D: 13 53                        dw      (((('T'-'@')<<5)|('X'-'@'))<<5)|('S'-'@')
+  1575                                        MNEM    'T','X','Y'
++ 1575 00:091F: 19 53                        dw      (((('T'-'@')<<5)|('X'-'@'))<<5)|('Y'-'@')
+  1576                                        MNEM    'T','Y','A'
+  Thu Aug  8 2024  9:30                                                                                                    Page 32
+
+
++ 1576 00:0921: 21 53                        dw      (((('T'-'@')<<5)|('Y'-'@'))<<5)|('A'-'@')
+  1577                                        MNEM    'T','Y','X'
++ 1577 00:0923: 38 53                        dw      (((('T'-'@')<<5)|('Y'-'@'))<<5)|('X'-'@')
+  1578                                        MNEM    'W','A','I'
++ 1578 00:0925: 29 5C                        dw      (((('W'-'@')<<5)|('A'-'@'))<<5)|('I'-'@')
+  1579                                        MNEM    'W','D','M'
++ 1579 00:0927: 8D 5C                        dw      (((('W'-'@')<<5)|('D'-'@'))<<5)|('M'-'@')
+  1580                                        MNEM    'X','B','A'
++ 1580 00:0929: 41 60                        dw      (((('X'-'@')<<5)|('B'-'@'))<<5)|('A'-'@')
+  1581                                        MNEM    'X','C','E'
++ 1581 00:092B: 65 60                        dw      (((('X'-'@')<<5)|('C'-'@'))<<5)|('E'-'@')
+  1582                        
+  1583                        ;===============================================================================
+  1584                        ; String Literals
+  1585                        ;-------------------------------------------------------------------------------
+  1586                        
+  1587 00:092D: 0D 0A        TITLE           db      CR,LF
+  1588 00:092F: 43 6F 70 79                  db      "Copyright (C),2015-2018 Andrew Jacobs",CR,LF
+       00:0933: 72 69 67 68 
+       00:0937: 74 20 28 43 
+       00:093B: 29 2C 32 30 
+       00:093F: 31 35 2D 32 
+       00:0943: 30 31 38 20 
+       00:0947: 41 6E 64 72 
+       00:094B: 65 77 20 4A 
+       00:094F: 61 63 6F 62 
+       00:0953: 73 0D 0A 
+  1589 00:0956: 57 36 35 43                  db      "W65C816SXB-Hacker [18.06]",CR,LF
+       00:095A: 38 31 36 53 
+       00:095E: 58 42 2D 48 
+       00:0962: 61 63 6B 65 
+       00:0966: 72 20 5B 31 
+       00:096A: 38 2E 30 36 
+       00:096E: 5D 0D 0A 
+  1590 00:0971: 4D 45 5A 57                  db      "MEZW65C_RAM Native Monitor Rev1.0",0
+       00:0975: 36 35 43 5F 
+       00:0979: 52 41 4D 20 
+       00:097D: 4E 61 74 69 
+       00:0981: 76 65 20 4D 
+       00:0985: 6F 6E 69 74 
+       00:0989: 6F 72 20 52 
+       00:098D: 65 76 31 2E 
+       00:0991: 30 00 
+  1591                        
+  1592 00:0993: 0D 0A 45 72  ERROR           db      CR,LF,"Error - Type ? for help",0
+       00:0997: 72 6F 72 20 
+       00:099B: 2D 20 54 79 
+       00:099F: 70 65 20 3F 
+       00:09A3: 20 66 6F 72 
+       00:09A7: 20 68 65 6C 
+       00:09AB: 70 00 
+  1593                        
+  1594 00:09AD: 0D 0A 45 72  ERASE_FAILED    db      CR,LF,"Erase failed",0
+       00:09B1: 61 73 65 20 
+       00:09B5: 66 61 69 6C 
+       00:09B9: 65 64 00 
+  1595 00:09BC: 0D 0A 57 72  WRITE_FAILED    db      CR,LF,"Write failed",0
+       00:09C0: 69 74 65 20 
+  Thu Aug  8 2024  9:30                                                                                                    Page 33
+
+
+       00:09C4: 66 61 69 6C 
+       00:09C8: 65 64 00 
+  1596 00:09CB: 0D 0A 49 6E  INVALID_S19     db      CR,LF,"Invalid S19 record",0
+       00:09CF: 76 61 6C 69 
+       00:09D3: 64 20 53 31 
+       00:09D7: 39 20 72 65 
+       00:09DB: 63 6F 72 64 
+       00:09DF: 00 
+  1597                        
+  1598 00:09E0: 0D 0A 57 61  WAITING         db      CR,LF,"Waiting for XMODEM transfer to start",0
+       00:09E4: 69 74 69 6E 
+       00:09E8: 67 20 66 6F 
+       00:09EC: 72 20 58 4D 
+       00:09F0: 4F 44 45 4D 
+       00:09F4: 20 74 72 61 
+       00:09F8: 6E 73 66 65 
+       00:09FC: 72 20 74 6F 
+       00:0A00: 20 73 74 61 
+       00:0A04: 72 74 00 
+  1599 00:0A07: 0D 0A 54 69  TIMEOUT         db      CR,LF,"Timeout",0
+       00:0A0B: 6D 65 6F 75 
+       00:0A0F: 74 00 
+  1600                        
+  1601 00:0A11: 0D 0A 48 20  HELP            db      CR,LF,"H bb           - Set memory bank"
+       00:0A15: 62 62 20 20 
+       00:0A19: 20 20 20 20 
+       00:0A1D: 20 20 20 20 
+       00:0A21: 20 2D 20 53 
+       00:0A25: 65 74 20 6D 
+       00:0A29: 65 6D 6F 72 
+       00:0A2D: 79 20 62 61 
+       00:0A31: 6E 6B 
+  1602 00:0A33: 0D 0A 4C 20                  db      CR,LF,"L ssss eeee    - Listing disassemble memory in current bank"
+       00:0A37: 73 73 73 73 
+       00:0A3B: 20 65 65 65 
+       00:0A3F: 65 20 20 20 
+       00:0A43: 20 2D 20 4C 
+       00:0A47: 69 73 74 69 
+       00:0A4B: 6E 67 20 64 
+       00:0A4F: 69 73 61 73 
+       00:0A53: 73 65 6D 62 
+       00:0A57: 6C 65 20 6D 
+       00:0A5B: 65 6D 6F 72 
+       00:0A5F: 79 20 69 6E 
+       00:0A63: 20 63 75 72 
+       00:0A67: 72 65 6E 74 
+       00:0A6B: 20 62 61 6E 
+       00:0A6F: 6B 
+  1603 00:0A70: 0D 0A 47 20                  db      CR,LF,"G [xxxx]       - Run from bb:xxxx or invoke reset vector"
+       00:0A74: 5B 78 78 78 
+       00:0A78: 78 5D 20 20 
+       00:0A7C: 20 20 20 20 
+       00:0A80: 20 2D 20 52 
+       00:0A84: 75 6E 20 66 
+       00:0A88: 72 6F 6D 20 
+       00:0A8C: 62 62 3A 78 
+       00:0A90: 78 78 78 20 
+       00:0A94: 6F 72 20 69 
+  Thu Aug  8 2024  9:30                                                                                                    Page 34
+
+
+       00:0A98: 6E 76 6F 6B 
+       00:0A9C: 65 20 72 65 
+       00:0AA0: 73 65 74 20 
+       00:0AA4: 76 65 63 74 
+       00:0AA8: 6F 72 
+  1604 00:0AAA: 0D 0A 44 20                  db      CR,LF,"D ssss eeee    - Dump memory in current bank"
+       00:0AAE: 73 73 73 73 
+       00:0AB2: 20 65 65 65 
+       00:0AB6: 65 20 20 20 
+       00:0ABA: 20 2D 20 44 
+       00:0ABE: 75 6D 70 20 
+       00:0AC2: 6D 65 6D 6F 
+       00:0AC6: 72 79 20 69 
+       00:0ACA: 6E 20 63 75 
+       00:0ACE: 72 72 65 6E 
+       00:0AD2: 74 20 62 61 
+       00:0AD6: 6E 6B 
+  1605 00:0AD8: 0D 0A 53 2E                  db      CR,LF,"S...           - Process S19 record"
+       00:0ADC: 2E 2E 20 20 
+       00:0AE0: 20 20 20 20 
+       00:0AE4: 20 20 20 20 
+       00:0AE8: 20 2D 20 50 
+       00:0AEC: 72 6F 63 65 
+       00:0AF0: 73 73 20 53 
+       00:0AF4: 31 39 20 72 
+       00:0AF8: 65 63 6F 72 
+       00:0AFC: 64 
+  1606 00:0AFD: 0D 0A 4D 20                  db      CR,LF,"M xxxx yy      - set Memory at xxxx to yy"
+       00:0B01: 78 78 78 78 
+       00:0B05: 20 79 79 20 
+       00:0B09: 20 20 20 20 
+       00:0B0D: 20 2D 20 73 
+       00:0B11: 65 74 20 4D 
+       00:0B15: 65 6D 6F 72 
+       00:0B19: 79 20 61 74 
+       00:0B1D: 20 78 78 78 
+       00:0B21: 78 20 74 6F 
+       00:0B25: 20 79 79 
+  1607 00:0B28: 0D 0A 58 20                  db      CR,LF,"X xxxx         - XMODEM receive to bb:xxxx"
+       00:0B2C: 78 78 78 78 
+       00:0B30: 20 20 20 20 
+       00:0B34: 20 20 20 20 
+       00:0B38: 20 2D 20 58 
+       00:0B3C: 4D 4F 44 45 
+       00:0B40: 4D 20 72 65 
+       00:0B44: 63 65 69 76 
+       00:0B48: 65 20 74 6F 
+       00:0B4C: 20 62 62 3A 
+       00:0B50: 78 78 78 78 
+  1608 00:0B54: 00                           db      0
+  1609                                        end
+
+
+      Lines assembled: 1831
+      Errors: 0

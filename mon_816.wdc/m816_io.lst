@@ -1,0 +1,420 @@
+  Thu Aug  8 2024  9:30                                                                                                    Page 1
+
+
+                                               ***************************************
+                                               **      WDC 65C816 Macro Assembler   **
+                                               **                                   **
+                                               **     Version 3.49.1- Feb  6 2006    **
+                                               ***************************************
+
+     1                        ;===============================================================================
+     2                        ; Basic Vector Handling for the MEZW65C_RAM add-on board
+     3                        ;
+     4                        ;    Target: MEZW65C_RAM
+     5                        ;    Written by Akihito Honda (Aki.h @akih_san)
+     6                        ;    https://twitter.com/akih_san
+     7                        ;    https://github.com/akih-san
+     8                        ;    Date. 2024.7.09
+     9                        ;
+    10                        ; Copyright (c) 2024 Akihito Honda
+    11                        ;
+    12                        ; Released under the MIT license
+    13                        ;
+    14                        ; Permission is hereby granted, free of charge, to any person obtaining a copy of this
+    15                        ; software and associated documentation files (the ÅgSoftwareÅh), to deal in the Software
+    16                        ; without restriction, including without limitation the rights to use, copy, modify, merge,
+    17                        ; publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+    18                        ; to whom the Software is furnished to do so, subject to the following conditions:
+    19                        ;
+    20                        ; The above copyright notice and this permission notice shall be included in all copies or
+    21                        ; substantial portions of the Software.
+    22                        ; 
+    23                        ; THE SOFTWARE IS PROVIDED ÅgAS ISÅh, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    24                        ; OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    25                        ; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    26                        ; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+    27                        ; BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+    28                        ; ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    29                        ; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    30                        ; SOFTWARE.
+    31                        ; 
+    32                        ; <Original sorce code>
+    33                        ; w65c816sxb.asm
+    34                        ; https://github.com/andrew-jacobs/w65c816sxb-hacker
+    35                        ; Thanks all.
+    36                        ;-------------------------------------------------------------------------------
+    37                        
+    38                                        pw      132
+    39                                        inclist on
+    40                        
+    41                                        chip    65816
+    42                        
+    43                                        include "w65c816.inc"
+     1                        ;==============================================================================
+     2                        ; __        ____  ____   ____ ___  _  __   
+     3                        ; \ \      / / /_| ___| / ___( _ )/ |/ /_  
+     4                        ;  \ \ /\ / / '_ \___ \| |   / _ \| | '_ \ 
+     5                        ;   \ V  V /| (_) |__) | |__| (_) | | (_) |
+     6                        ;    \_/\_/  \___/____/ \____\___/|_|\___/ 
+     7                        ;
+     8                        ; Western Design Center W65C816 device definitions                                          
+     9                        ;------------------------------------------------------------------------------
+  Thu Aug  8 2024  9:30                                                                                                    Page 2
+
+
+    10                        ; Copyright (C)2015 HandCoded Software Ltd.
+    11                        ; All rights reserved.
+    12                        ;
+    13                        ; This work is made available under the terms of the Creative Commons
+    14                        ; Attribution-NonCommercial-ShareAlike 4.0 International license. Open the
+    15                        ; following URL to see the details.
+    16                        ;
+    17                        ; http://creativecommons.org/licenses/by-nc-sa/4.0/
+    18                        ;
+    19                        ;===============================================================================
+    20                        ; Notes:
+    21                        ;
+    22                        ; Various macros and definitions for the W65C816 microprocessor.
+    23                        ;
+    24                        ;===============================================================================
+    25                        ; Revision History:
+    26                        ;
+    27                        ; 2015-12-18 AJ Initial version
+    28                        ;-------------------------------------------------------------------------------
+    29                        ; $Id$
+    30                        ;-------------------------------------------------------------------------------
+    31                        
+    32                        ;==============================================================================
+    33                        ; Status Register Bits
+    34                        ;------------------------------------------------------------------------------
+    35                        
+    36             00000080   N_FLAG          equ     1<<7
+    37             00000040   V_FLAG          equ     1<<6
+    38             00000020   M_FLAG          equ     1<<5
+    39             00000010   X_FLAG          equ     1<<4
+    40             00000010   B_FLAG          equ     1<<4
+    41             00000008   D_FLAG          equ     1<<3
+    42             00000004   I_FLAG          equ     1<<2
+    43             00000002   Z_FLAG          equ     1<<1
+    44             00000001   C_FLAG          equ     1<<0
+    45                        
+    46                        ;==============================================================================
+    47                        ; Macros
+    48                        ;------------------------------------------------------------------------------
+    49                        
+    50                        ; Puts the processor in emulation mode. A, X and Y become 8-bits and the stack
+    51                        ; is fixed at $0100-$01ff. 
+    52                        
+    53                        emulate         macro
+    54                                        sec
+    55                                        xce
+    56                                        endm
+    57                        
+    58                        ; Puts the processor in native mode. The size of the memory and index register
+    59                        ; operations is not controlled by the M & X bits in the status register.
+    60                        
+    61                        native          macro
+    62                                        clc
+    63                                        xce
+    64                                        endm
+    65                        
+    66                        ; Resets the M bit making the accumulator and memory accesses 16-bits wide.
+    67                         
+  Thu Aug  8 2024  9:30                                                                                                    Page 3
+
+
+    68                        long_a          macro
+    69                                        rep     #M_FLAG
+    70                                        longa   on
+    71                                        endm
+    72                        
+    73                        ; Resets the X bit making the index registers 16-bits wide
+    74                        
+    75                        long_i          macro
+    76                                        rep     #X_FLAG
+    77                                        longi   on
+    78                                        endm
+    79                        
+    80                        ; Resets the M and X bits making the accumulator, memory accesses and index
+    81                        ; registers 16-bits wide.
+    82                                        
+    83                        long_ai         macro
+    84                                        rep     #M_FLAG|X_FLAG
+    85                                        longa   on
+    86                                        longi   on
+    87                                        endm
+    88                        
+    89                        ; Sets the M bit making the accumulator and memory accesses 8-bits wide.
+    90                        
+    91                        short_a         macro
+    92                                        sep     #M_FLAG
+    93                                        longa   off
+    94                                        endm
+    95                        
+    96                        ; Sets the X bit making the index registers 8-bits wide.
+    97                        
+    98                        short_i         macro
+    99                                        sep     #X_FLAG
+   100                                        longi   off
+   101                                        endm
+   102                                        
+   103                        ; Sets the M & X bits making the accumulator, memory accesses and index
+   104                        ; registers 8-bits wide.
+   105                        
+   106                        short_ai        macro
+   107                                        sep     #M_FLAG|X_FLAG
+   108                                        longa   off
+   109                                        longi   off
+   110                                        endm
+    44                        
+    45                        ;===============================================================================
+    46                        ; Data Areas
+    47                        ;-------------------------------------------------------------------------------
+    48                        
+    49                                        page0
+    50                        
+    51                                        org     $18
+    52                        
+    53                        ; PIC18F47QXX I/F
+    54 00:0018:              UREQ_COM	ds	1	; unimon CONIN/CONOUT request command
+    55 00:0019:              UNI_CHR		ds	1	; charcter (CONIN/CONOUT) or number of strings
+    56 00:001A:              CREQ_COM	ds	1	; unimon CONIN/CONOUT request command
+    57 00:001B:              CBI_CHR		ds	1	; charcter (CONIN/CONOUT) or number of strings
+    58 00:001C:              disk_drive	ds	1	;
+  Thu Aug  8 2024  9:30                                                                                                    Page 4
+
+
+    59 00:001D:              disk_track	ds	2	;
+    60 00:001F:              disk_sector	ds	2	;
+    61 00:0021:              data_adr	ds	2	;
+    62 00:0023:              bank		ds	1	;
+    63 00:0024:              reserve		ds	1	;
+    64                        
+    65                        
+    66                        ;===============================================================================
+    67                        ; Power On Reset
+    68                        ;-------------------------------------------------------------------------------
+    69                        
+    70             00000000   cpu_id          equ	$00	; memory address $0000 is written CPU ID by PIC
+    71                        
+    72                                        code
+    73                                        extern  Start
+    74                                        longi   off
+    75                                        longa   off
+    76                        RESET:
+    77 00:0000: 78                           sei                             ; Stop interrupts
+    78 00:0001: A2 FF                        ldx     #$ff                    ; Reset the stack
+    79 00:0003: 9A                           txs
+    80                        
+    81                        ; check W65C816 CPU ?
+    82                        
+    83 00:0004: A5 00                        lda	cpu_id			; get cpu id from PIC 0:W65C02, 1:W65C816S
+    84 00:0006: D0 0F                        bne	ok_start
+    85                        
+    86 00:0008: A2 00                        ldx	#0
+    87                        msg_lop:
+    88 00:000A: BD xx xx                     lda	haltm,x
+    89 00:000D: F0 06                        beq	stop_prg
+    90 00:000F: 20 xx xx                     jsr	UartTx			; print error message
+    91 00:0012: E8                           inx
+    92 00:0013: 80 F5                        bra	msg_lop
+    93                        
+    94                        stop_prg:
+    95 00:0015: 78                           sei
+    96 00:0016: DB                           stp				; STOP
+    97                        
+    98                        ok_start:
+    99                                        native                          ; Switch to native mode
++   99 00:0017: 18                           clc
++   99 00:0018: FB                           xce
+   100 00:0019: 4C xx xx                     jmp     Start                   ; Jump to the application start
+   101                        
+   102                        ;===============================================================================
+   103                        ; Interrupt Handlers
+   104                        ;-------------------------------------------------------------------------------
+   105                        
+   106                        ; Handle IRQ and BRK interrupts in emulation mode.
+   107                        
+   108                        IRQBRK:
+   109 00:001C: 80 FE                        bra     $                       ; Loop forever
+   110                        
+   111                        ; Handle NMI interrupts in emulation mode.
+   112                        
+   113                        NMIRQ:
+   114 00:001E: 80 FE                        bra     $                       ; Loop forever
+  Thu Aug  8 2024  9:30                                                                                                    Page 5
+
+
+   115                        
+   116                        ;-------------------------------------------------------------------------------
+   117                        
+   118                        ; Handle IRQ interrupts in native mode.
+   119                        
+   120                        IRQ:
+   121 00:0020: 80 FE                        bra     $                       ; Loop forever
+   122                        
+   123                        ; Handle IRQ interrupts in native mode.
+   124                        
+   125                        BRK:
+   126 00:0022: 80 FE                        bra     $                       ; Loop forever
+   127                        
+   128                        ; Handle IRQ interrupts in native mode.
+   129                        
+   130                        NMI:
+   131 00:0024: 80 FE                        bra     $                       ; Loop forever
+   132                        
+   133                        ;-------------------------------------------------------------------------------
+   134                        
+   135                        ; COP and ABORT interrupts are not handled.
+   136                        
+   137                        COP:
+   138 00:0026: 80 FE                        bra     $                       ; Loop forever
+   139                        
+   140                        ABORT:
+   141 00:0028: 80 FE                        bra     $                       ; Loop forever
+   142                        
+   143                        ;===============================================================================
+   144                        ;
+   145                        ;  	Console Driver
+   146                        ;
+   147                        ;CONIN_REQ	EQU	0x01
+   148                        ;CONOUT_REQ	EQU	0x02
+   149                        ;CONST_REQ	EQU	0x03
+   150                        ;STROUT_REQ	EQU	0x04
+   151                        ;  ---- request command to PIC
+   152                        ; UREQ_COM = 1 ; CONIN  : return char in UNI_CHR
+   153                        ;          = 2 ; CONOUT : UNI_CHR = output char
+   154                        ;          = 3 ; CONST  : return status in UNI_CHR
+   155                        ;                       : ( 0: no key, 1 : key exist )
+   156                        ;          = 4 ; STROUT : string address = (PTRSAV, PTRSAV_SEG)
+   157                        ;
+   158                        ;UREQ_COM	rmb	1	; unimon CONIN/CONOUT request command
+   159                        ;UNI_CHR	rmb	1	; charcter (CONIN/CONOUT) or number of strings
+   160                        ;STR_adr	rmb	2	; string address
+   161                        ;-------------------------------------------------------------------------------
+   162                        
+   163                        ; PIC function code
+   164                        
+   165             00000001   CONIN_REQ	EQU	$01
+   166             00000002   CONOUT_REQ	EQU	$02
+   167             00000003   CONST_REQ	EQU	$03
+   168                        
+   169                        INIT:
+   170                                        ; clear Reqest Parameter Block
+   171 00:002A: A9 00                        lda	#0
+   172 00:002C: 85 18                        sta	UREQ_COM
+  Thu Aug  8 2024  9:30                                                                                                    Page 6
+
+
+   173 00:002E: 85 1A                        sta	CREQ_COM
+   174 00:0030: 85 23                        sta	bank
+   175 00:0032: 85 24                        sta	reserve
+   176 00:0034: 60                           RTS
+   177                        
+   178                        wup_pic:
+   179 00:0035: 85 18                        sta	UREQ_COM
+   180 00:0037: CB                           wai			; RDY = 0, wait /IRQ detect
+   181                        ;                nop
+   182                        ;                nop
+   183                        ;                nop
+   184                        ;                nop
+   185                        ;                nop
+   186                        ;                nop
+   187                        ;                nop
+   188                        ;                nop
+   189                        
+   190 00:0038: A5 19                        lda	UNI_CHR
+   191 00:003A: 60                           RTS
+   192                        
+   193                                        public  UartRx
+   194                        
+   195                        UartRx:
+   196 00:003B: 08                           php			; Save register sizes
+   197                                        short_a			; Make A 8-bits
++  197 00:003C: E2 20                        sep     #M_FLAG
++  197                                        longa   off
+   198 00:003E: A9 01                        lda	#CONIN_REQ
+   199 00:0040: 20 xx xx                     jsr	wup_pic
+   200 00:0043: 28                           plp			; Restore register sizes
+   201 00:0044: 60                           rts
+   202                        
+   203                        
+   204                        ; Check if the receive buffer contains any data and return C=1 if there is
+   205                        ; some.
+   206                        
+   207                                        public  UartRxTest
+   208                        UartRxTest:
+   209 00:0045: 48                           pha
+   210 00:0046: 08                           php
+   211                                        short_a			; Make A 8-bits
++  211 00:0047: E2 20                        sep     #M_FLAG
++  211                                        longa   off
+   212 00:0049: A9 03                        lda	#CONST_REQ
+   213 00:004B: 20 xx xx                     jsr	wup_pic
+   214 00:004E: 28                           plp
+   215 00:004F: 6A                           ror	a
+   216 00:0050: 68                           pla
+   217 00:0051: 60                           rts
+   218                        
+   219                                        public  UartTx
+   220                        UartTx:
+   221 00:0052: 48                           pha
+   222 00:0053: 08                           php			; Save register sizes
+   223                                        short_a			; Make A 8-bits
++  223 00:0054: E2 20                        sep     #M_FLAG
++  223                                        longa   off
+   224 00:0056: 85 19                        sta	UNI_CHR		; set char
+  Thu Aug  8 2024  9:30                                                                                                    Page 7
+
+
+   225 00:0058: A9 02                        lda	#CONOUT_REQ
+   226 00:005A: 20 xx xx                     jsr	wup_pic
+   227 00:005D: 28                           plp			; Restore register sizes
+   228 00:005E: 68                           pla
+   229 00:005F: 60                           rts
+   230                        
+   231             0000000A   LF              equ     $0a
+   232             0000000D   CR              equ     $0d
+   233                        
+   234                        haltm:
+   235 00:0060: 0D 0A 4E 6F                  db	CR,LF,"No W65C816S is detected!",CR, LF
+       00:0064: 20 57 36 35 
+       00:0068: 43 38 31 36 
+       00:006C: 53 20 69 73 
+       00:0070: 20 64 65 74 
+       00:0074: 65 63 74 65 
+       00:0078: 64 21 0D 0A 
+   236 00:007C: 43 50 55 20  		db	"CPU HALT!!", CR, LF, 0
+       00:0080: 48 41 4C 54 
+       00:0084: 21 21 0D 0A 
+       00:0088: 00 
+   237                        
+   238                        ;===============================================================================
+   239                        ; Reset Vectors
+   240                        ;-------------------------------------------------------------------------------
+   241                        
+   242                        Vectors         section offset $ffe0
+   243                        
+   244 00:FFE0:                              ds      4                       ; Reserved
+   245 00:FFE4: xx xx                        dw      COP                     ; $FFE4 - COP(816)
+   246 00:FFE6: xx xx                        dw      BRK                     ; $FFE6 - BRK(816)
+   247 00:FFE8: xx xx                        dw      ABORT                   ; $FFE8 - ABORT(816)
+   248 00:FFEA: xx xx                        dw      NMI                     ; $FFEA - NMI(816)
+   249 00:FFEC:                              ds      2                       ; Reserved
+   250 00:FFEE: xx xx                        dw      IRQ                     ; $FFEE - IRQ(816)
+   251                        
+   252 00:FFF0:                              ds      4
+   253 00:FFF4: xx xx                        dw      COP                     ; $FFF4 - COP(C02)
+   254 00:FFF6:                              ds      2                       ; $Reserved
+   255 00:FFF8: xx xx                        dw      ABORT                   ; $FFF8 - ABORT(C02)
+   256 00:FFFA: xx xx                        dw      NMIRQ                   ; $FFFA - NMI(C02)
+   257 00:FFFC: xx xx                        dw      RESET                   ; $FFFC - RESET(C02)
+   258 00:FFFE: xx xx                        dw      IRQBRK                  ; $FFFE - IRQBRK(C02)
+   259                        
+   260 01:0000:                              ends
+   261                        
+   262                                        end
+
+
+      Lines assembled: 380
+      Errors: 0
