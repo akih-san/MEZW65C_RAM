@@ -137,6 +137,39 @@ W65C816Sでは、エミュレーションモードでは10MHzで動作してい�
 モードに切り替えた場合、BANK0以外では10MHzで動作しませんでした。<br>
 <br>
 <br>
+# ＯＳについて（今後の開発目標）
+<br>
+MEZW65C_RAM上で動作するＯＳの移植が、今後の課題です。<br>
+レトロPCで6502界隈は、現在も非常にアクティブに開発が行われている<br>
+ようです。<br>
+<br>
+・DOS/65 (http://www.z80.eu/dos65.html)<br>
+・cpm65 (https://github.com/davidgiven/cpm65?tab=readme-ov-file)<br>
+・miniOS (https://github.com/zuiko21/minimOS)<br>
+・GeckOS (http://www.6502.org/users/andre/osa/index.html)<br>
+<br>
+< SDK ><br>
+・LLVM-MOS SDK（https://github.com/llvm-mos/llvm-mos-sdk）<br>
+<br>
+<エミュレーター><br>
+・VICE（the Versatile Commodore Emulator）<br>
+（https://vice-emu.sourceforge.io/）<br>
+<br>
+MEZW65C_RAMに乗せるＯＳとして、GeckOSを検討しています。<br>
+Linuxライクで非常にフレキシブルな構造をしたマルチタスクＯＳです。<br>
+現在も開発が続いています。<br>
+6502で、ここまでするかぁ～って感じですが、開発者André Fachatさんの<br>
+すごい情熱を感じます。<br>
+ドキュメントが半端なく揃えられていますが、物凄い量なので大変です。<br>
+ファイルシステムは、FAT12をサポートしているとのことなので、<br>
+MEZ88_RAMでMS-DOS V2.2を移植した同様の手口が使えるのではないかと思ってます。<br>
+MS-DOSとかと違って、カーネルをソースから組み込む必要があり、GeckOS内部構造を<br>
+きちんと理解する必要がありそうで、へっぽこボビーストにはかなりのハードルですね。<br>
+<br>
+ま、焦らず、ゆっくりと取り組んでいこうと思ってます。<br>
+<br>
+<br>
+
 # 参考
 ＜EMUZ80＞<br>
 EUMZ80はZ80CPUとPIC18F47Q43のDIP40ピンIC2つで構成されるシンプルなコンピュータです。<br>
