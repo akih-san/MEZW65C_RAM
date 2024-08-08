@@ -99,6 +99,36 @@ https://sourceforge.net/projects/bin2mot/files/<br>
 　http://elm-chan.org/fsw/ff/00index_e.html<br>
 <br>
 
+# PIC18F47Q43/Q84への書き込み
+・snap<br>
+マイクロチップ社の書き込みツールです。<br>
+<br>
+・PICkit3
+PICkitminus書き込みソフトを用いて、書き込むことが出来ます。以下で入手できます。
+http://kair.us/projects/pickitminus/
+<br>
+<br>
+PICへの書き込みツールを用いて、ヘキサファイルを書き込みます。<br>
+書き込み用のデータは8MHz用と、4MHz用の2種類用意しました。<br>
+<br>
+・PIC18F47Q43<br>
+　　- R1.2q43_8MHz.hex<br>
+　　- R1.2q43_4MHz.hex<br>
+<br>
+・PIC18F47Q43<br>
+　　- R1.2q84_8MHz.hex<br>
+　　- R1.2q84_4MHz.hex<br>
+<br>
+動作周波数の設定は、src/boardsにあるソースファイルw65_bd.cで修正できます。<br>
+9MHz以上の設定も出来ますが、動作が不安定です。11MHz以上は動作しません。<br>
+<br>
+（注意事項）<br>
+アクセスタイム55nsのメモリを使用しているため、10MHz付近が限界のようです。<br>
+W65C02Sでは、10MHzで動作しています。<br>
+W65C816Sでは、エミュレーションモードでは10MHzで動作していますが、ネイティブ<br>
+モードに切り替えた場合、BANK0以外では10MHzで動作しませんでした。<br>
+<br>
+<br>
 # 参考
 ＜EMUZ80＞<br>
 EUMZ80はZ80CPUとPIC18F47Q43のDIP40ピンIC2つで構成されるシンプルなコンピュータです。<br>
