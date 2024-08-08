@@ -155,7 +155,7 @@ MEZW65C_RAM上で動作するＯＳの移植が、今後の課題です。<br>
 ・VICE（the Versatile Commodore Emulator）<br>
 （https://vice-emu.sourceforge.io/）<br>
 <br>
-MEZW65C_RAMに乗せるＯＳとして、GeckOSを検討しています。<br>
+MEZW65C_RAMに移植するＯＳとして、GeckOSを検討しています。<br>
 Linuxライクで非常にフレキシブルな構造をしたマルチタスクＯＳです。<br>
 現在も開発が続いています。<br>
 6502で、ここまでするかぁ～って感じですが、開発者André Fachatさんの<br>
