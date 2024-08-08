@@ -41,6 +41,12 @@ MEZW65C_RAMM拡大<br>
 　　2) 6502_EhBASIC_V2.22<br>
 　　3) W65C816用ネイティブモニタ（sxb-hacker）<br>
 <br>
+      sxb-hackerは、WDC社で提供しているW65C816SXBトレーニング<br>
+      ボード用に開発されたソフトでAndrew Jacobs氏が作成しました。<br>
+      今回、このソフトをMEZW65C_RAM用に移植しました。<br>
+      （https://github.com/andrew-jacobs/w65c816sxb-hacker）<br>
+<br>
+<br>
 
 6502 EhBASIC V2.22の起動画面<br>
 ![MEZW65C_RAM 3](photo/W65C816S_basic.png)
