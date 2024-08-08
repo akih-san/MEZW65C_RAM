@@ -32,7 +32,7 @@ MEZW65C_RAMM拡大<br>
 <br>
 ・CPU : W65C816Sまたは、W65C02相当 8MHz動作<br>
 　　　　(W65C816S6TPG-14, W65C02S6TPG-14で確認）<br>
-・Microcontroller : PIC18F47Q43, PIC18F47Q84, PIC18F47Q83<br>
+・Microcontroller : PIC18F47Q43, PIC18F47Q84<br>
 ・512K SRAM搭載(AS6C4008-55PCN)<br>
 ・μSDカードI/F（SPI)<br>
 ・UART（9600bps無手順）<br>
