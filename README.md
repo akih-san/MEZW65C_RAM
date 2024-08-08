@@ -44,6 +44,8 @@ MEZW65C_RAMM拡大<br>
       sxb-hackerは、WDC社で提供しているW65C816SXBトレーニング<br>
       ボード用に開発されたソフトでAndrew Jacobs氏が作成しました。<br>
       今回、このソフトをMEZW65C_RAM用に移植しました。<br>
+      移植に際して、コマンドをなるべくユニバーサルモニタに合わせるように<br>
+      変更してあります。？コマンドで見てください。<br>
       （https://github.com/andrew-jacobs/w65c816sxb-hacker）<br>
 <br>
 <br>
